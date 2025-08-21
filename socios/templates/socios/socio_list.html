@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="mb-0">Socios</h1>
+  <a href="{% url 'socios:crear' %}" class="btn btn-success">Nuevo Socio</a>
+</div>
+<div class="table-responsive">
+  <table class="table table-striped table-bordered align-middle">
+      <thead class="table-primary">
+          <tr>
+              <th>Nombre y Apellido</th>
+              <th>DNI</th>
+              <th>Categoría</th>
+              <th>Email</th>
+              <th>Celular</th>
+              <th>Fecha de Nacimiento</th>
+              <th>Fecha de Alta</th>
+              <th>Acciones</th>
+          </tr>
+      </thead>
+      <tbody>
+      {% for socio in socios %}
+          <tr>
+              <td>{{ socio.nombre_apellido }}</td>
+              <td>{{ socio.dni }}</td>
+              <td>{{ socio.categoria }}</td>
+              <td>{{ socio.email }}</td>
+              <td>{{ socio.celular }}</td>
+              <td>{{ socio.fecha_nacimiento }}</td>
+              <td>{{ socio.fecha_alta }}</td>
+              <td>
+                  <a href="{% url 'socios:editar' socio.pk %}" class="btn btn-sm btn-primary">Editar</a>
+                  <a href="{% url 'socios:eliminar' socio.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
+              </td>
+          </tr>
+      {% empty %}
+          <tr><td colspan="8" class="text-center">No hay socios registrados.</td></tr>
+      {% endfor %}
+      </tbody>
+  </table>
+</div>
+{% endblock %}
