@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>{% if form.instance.pk %}Editar Concepto{% else %}Nuevo Concepto{% endif %}</h2>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.nombre.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.descripcion.id_for_label }}" class="form-label">Descripción</label>
+                    {{ form.descripcion }}
+                    {% if form.descripcion.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.descripcion.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.monto_sugerido.id_for_label }}" class="form-label">Monto Sugerido</label>
+                    {{ form.monto_sugerido }}
+                    {% if form.monto_sugerido.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.monto_sugerido.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3 form-check">
+                    {{ form.activo }}
+                    <label for="{{ form.activo.id_for_label }}" class="form-check-label">Activo</label>
+                    {% if form.activo.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in form.activo.errors %}
+                        {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="form-text text-muted">
+                        Los conceptos activos serán mostrados en la lista de selección al crear pagos.
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'socios:listar_conceptos' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

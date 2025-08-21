@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="card mx-auto" style="max-width: 600px;">
+    <div class="card-header bg-primary text-white">
+      <h2 class="card-title mb-0">{% if form.instance.pk %}Editar Pago{% else %}Registrar Pago{% endif %}</h2>
+    </div>
+    <div class="card-body">
+      {% if socio %}
+      <div class="mb-4">
+        <h4>{{ socio.nombre }} {{ socio.apellido }}</h4>
+        <p class="text-muted">DNI: {{ socio.dni }}</p>
+      </div>
+      {% endif %}
+      
+      <form method="post">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+          {{ form.socio.label_tag }}
+          {{ form.socio }}
+          {% if form.socio.errors %}
+            <div class="text-danger small">{{ form.socio.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          {{ form.concepto.label_tag }}
+          {{ form.concepto }}
+          {% if form.concepto.errors %}
+            <div class="text-danger small">{{ form.concepto.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          {{ form.mes_correspondiente.label_tag }}
+          {{ form.mes_correspondiente }}
+          {% if form.mes_correspondiente.errors %}
+            <div class="text-danger small">{{ form.mes_correspondiente.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          {{ form.monto.label_tag }}
+          {{ form.monto }}
+          {% if form.monto.errors %}
+            <div class="text-danger small">{{ form.monto.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          {{ form.fecha_pago.label_tag }}
+          {{ form.fecha_pago }}
+          {% if form.fecha_pago.errors %}
+            <div class="text-danger small">{{ form.fecha_pago.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          {{ form.metodo_pago.label_tag }}
+          {{ form.metodo_pago }}
+          {% if form.metodo_pago.errors %}
+            <div class="text-danger small">{{ form.metodo_pago.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          {{ form.comprobante.label_tag }}
+          {{ form.comprobante }}
+          {% if form.comprobante.errors %}
+            <div class="text-danger small">{{ form.comprobante.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="mb-3">
+          {{ form.comentarios.label_tag }}
+          {{ form.comentarios }}
+          {% if form.comentarios.errors %}
+            <div class="text-danger small">{{ form.comentarios.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="d-flex justify-content-between">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-save"></i> Guardar
+          </button>
+          {% if socio %}
+            <a href="{% url 'socios:detalle_socio' socio.pk %}" class="btn btn-secondary">
+              <i class="bi bi-x-circle"></i> Cancelar
+            </a>
+          {% else %}
+            <a href="{% url 'socios:listar_pagos' %}" class="btn btn-secondary">
+              <i class="bi bi-x-circle"></i> Cancelar
+            </a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuración para actualizar monto sugerido
+    const conceptoSelect = document.getElementById('id_concepto');
+    const montoInput = document.getElementById('id_monto');
+    
+    if (conceptoSelect && montoInput) {
+        conceptoSelect.addEventListener('change', function() {
+            const conceptoId = this.value;
+            if (conceptoId) {
+                // Hacer solicitud AJAX para obtener el monto sugerido
+                fetch(`/socios/pagos/concepto-monto/?concepto_id=${conceptoId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.monto_sugerido) {
+                            montoInput.value = data.monto_sugerido;
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+        });
+    }
+    
+    // Configuración para el selector de fecha en español
+    const fechaPagoInput = document.getElementById('id_fecha_pago');
+    if (fechaPagoInput) {
+        // Asegurarnos de que el idioma del selector de fecha sea español
+        fechaPagoInput.setAttribute('lang', 'es');
+        // Esta es una solución para Chrome y algunos navegadores que soportan esta propiedad
+        try {
+            fechaPagoInput.showPicker = function() {
+                this.click();
+            };
+        } catch (e) {
+            console.log("El navegador no soporta showPicker");
+        }
+    }
+});
+</script>
+{% endblock %}

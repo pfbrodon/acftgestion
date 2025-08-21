@@ -2,8 +2,10 @@
 <html lang="es">
 <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Gestión de Socios - Club de Ferromodelismo</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 </head>
 <body class="bg-light">
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
@@ -15,10 +17,34 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'socios:listar' %}">Socios</a>
+                            <a class="nav-link" href="{% url 'socios:listar' %}">
+                                <i class="bi bi-people"></i> Socios
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'socios:listar_categorias' %}">Categorías</a>
+                            <a class="nav-link" href="{% url 'socios:listar_categorias' %}">
+                                <i class="bi bi-tags"></i> Categorías
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-cash-coin"></i> Pagos
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <li><a class="dropdown-item" href="{% url 'socios:listar_pagos' %}">
+                                    <i class="bi bi-list-ul"></i> Lista de Pagos
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'socios:crear_pago_general' %}">
+                                    <i class="bi bi-plus-circle"></i> Registrar Nuevo Pago
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'socios:listar_conceptos' %}">
+                                    <i class="bi bi-card-list"></i> Conceptos de Pago
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'socios:listar' %}">
+                                    <i class="bi bi-person-lines-fill"></i> Ver Pagos por Socio
+                                </a></li>
+                            </ul>
                         </li>
                     </ul>
                 </div>
@@ -39,5 +65,6 @@
             {% block content %}{% endblock %}
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        {% block extra_js %}{% endblock %}
 </body>
 </html>
