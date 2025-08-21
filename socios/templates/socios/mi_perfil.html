@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <h2 class="card-title mb-0">
+      {{ socio.nombre }} {{ socio.apellido }}
+      {% if estado_pagos == 'Al día' %}
+        <span class="badge bg-success float-end">Al día</span>
+      {% elif estado_pagos == 'Con atraso' %}
+        <span class="badge bg-warning text-dark float-end">Con atraso</span>
+      {% else %}
+        <span class="badge bg-danger float-end">Moroso</span>
+      {% endif %}
+    </h2>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <h4>Información Personal</h4>
+        <table class="table">
+          <tr>
+            <th>DNI:</th>
+            <td>{{ socio.dni }}</td>
+          </tr>
+          <tr>
+            <th>Dirección:</th>
+            <td>{{ socio.direccion }}</td>
+          </tr>
+          <tr>
+            <th>Categoría:</th>
+            <td>{{ socio.categoria }}</td>
+          </tr>
+          <tr>
+            <th>Email:</th>
+            <td>{{ socio.email }}</td>
+          </tr>
+          <tr>
+            <th>Celular:</th>
+            <td>{{ socio.celular }}</td>
+          </tr>
+          <tr>
+            <th>Fecha de Nacimiento:</th>
+            <td>{{ socio.fecha_nacimiento }}</td>
+          </tr>
+          <tr>
+            <th>Fecha de Alta:</th>
+            <td>{{ socio.fecha_alta }}</td>
+          </tr>
+        </table>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex justify-content-between align-items-center">
+          <h4>Historial de Pagos</h4>
+          {% if es_admin %}
+          <a href="{% url 'socios:crear_pago' socio.pk %}" class="btn btn-success">
+            <i class="bi bi-cash"></i> Registrar Pago
+          </a>
+          {% endif %}
+        </div>
+        
+        {% if pagos %}
+        <div class="table-responsive">
+          <table class="table table-sm table-striped">
+            <thead>
+              <tr>
+                <th>Concepto</th>
+                <th>Fecha</th>
+                <th>Mes</th>
+                <th>Monto</th>
+                <th>Método</th>
+                {% if es_admin %}
+                <th>Acciones</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for pago in pagos %}
+              <tr>
+                <td>{{ pago.concepto.nombre|default:"-" }}</td>
+                <td>{{ pago.fecha_pago }}</td>
+                <td>{{ pago.mes_correspondiente }}</td>
+                <td>${{ pago.monto }}</td>
+                <td>{{ pago.get_metodo_pago_display }}</td>
+                {% if es_admin %}
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'socios:editar_pago' pago.pk %}" class="btn btn-primary btn-sm">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    <a href="{% url 'socios:eliminar_pago' pago.pk %}" class="btn btn-danger btn-sm">
+                      <i class="bi bi-trash"></i>
+                    </a>
+                  </div>
+                </td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">No hay pagos registrados.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <div class="d-flex justify-content-between">
+      {% if es_admin %}
+      <a href="{% url 'socios:listar' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a la lista
+      </a>
+      <div>
+        <a href="{% url 'socios:editar' socio.pk %}" class="btn btn-primary">
+          <i class="bi bi-pencil"></i> Editar socio
+        </a>
+        <a href="{% url 'socios:eliminar' socio.pk %}" class="btn btn-danger">
+          <i class="bi bi-trash"></i> Eliminar socio
+        </a>
+      </div>
+      {% else %}
+      <a href="{% url 'socios:mi_perfil' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

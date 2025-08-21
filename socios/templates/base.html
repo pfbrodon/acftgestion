@@ -16,36 +16,87 @@
                 </button>
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'socios:listar' %}">
-                                <i class="bi bi-people"></i> Socios
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'socios:listar_categorias' %}">
-                                <i class="bi bi-tags"></i> Categorías
-                            </a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-cash-coin"></i> Pagos
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                                <li><a class="dropdown-item" href="{% url 'socios:listar_pagos' %}">
-                                    <i class="bi bi-list-ul"></i> Lista de Pagos
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'socios:crear_pago_general' %}">
-                                    <i class="bi bi-plus-circle"></i> Registrar Nuevo Pago
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'socios:listar_conceptos' %}">
-                                    <i class="bi bi-card-list"></i> Conceptos de Pago
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'socios:listar' %}">
-                                    <i class="bi bi-person-lines-fill"></i> Ver Pagos por Socio
-                                </a></li>
-                            </ul>
-                        </li>
+                        {% if user.is_authenticated %}
+                            {% if user.is_superuser or user.socio.es_administrador %}
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'socios:listar' %}">
+                                        <i class="bi bi-people"></i> Socios
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'socios:listar_categorias' %}">
+                                        <i class="bi bi-tags"></i> Categorías
+                                    </a>
+                                </li>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-cash-coin"></i> Pagos
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                        <li><a class="dropdown-item" href="{% url 'socios:listar_pagos' %}">
+                                            <i class="bi bi-list-ul"></i> Lista de Pagos
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="{% url 'socios:crear_pago_general' %}">
+                                            <i class="bi bi-plus-circle"></i> Registrar Nuevo Pago
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="{% url 'socios:listar_conceptos' %}">
+                                            <i class="bi bi-card-list"></i> Conceptos de Pago
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{% url 'socios:listar' %}">
+                                            <i class="bi bi-person-lines-fill"></i> Ver Pagos por Socio
+                                        </a></li>
+                                    </ul>
+                                </li>
+                            {% else %}
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'socios:mi_perfil' %}">
+                                        <i class="bi bi-person-circle"></i> Mi Perfil
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endif %}
+                    </ul>
+                    
+                    <!-- Menú de usuario -->
+                    <ul class="navbar-nav ms-auto">
+                        {% if user.is_authenticated %}
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-person-circle"></i>
+                                    {% if user.socio %}
+                                        {{ user.socio.nombre }} {{ user.socio.apellido }}
+                                    {% else %}
+                                        {{ user.username }}
+                                    {% endif %}
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                    <li><a class="dropdown-item" href="{% url 'socios:mi_perfil' %}">
+                                        <i class="bi bi-person"></i> Mi Perfil
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="post" action="{% url 'socios:logout' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'socios:login' %}">
+                                    <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'socios:registro' %}">
+                                    <i class="bi bi-person-plus"></i> Registrarse
+                                </a>
+                            </li>
+                        {% endif %}
                     </ul>
                 </div>
             </div>

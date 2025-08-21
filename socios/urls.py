@@ -4,7 +4,9 @@ from .views import (
     CategoriaListView, CategoriaCreateView, CategoriaUpdateView, CategoriaDeleteView,
     PagoCreateView, PagoUpdateView, PagoDeleteView, PagoListView,
     ConceptoListView, ConceptoCreateView, ConceptoUpdateView, ConceptoDeleteView,
-    get_concepto_monto
+    get_concepto_monto,
+    # Vistas de autenticación
+    SocioLoginView, SocioLogoutView, RegistroView, MiPerfilView
 )
 
 app_name = 'socios'
@@ -36,4 +38,10 @@ urlpatterns = [
     path('conceptos/nuevo/', ConceptoCreateView.as_view(), name='crear_concepto'),
     path('conceptos/editar/<int:pk>/', ConceptoUpdateView.as_view(), name='editar_concepto'),
     path('conceptos/eliminar/<int:pk>/', ConceptoDeleteView.as_view(), name='eliminar_concepto'),
+    
+    # URLs para autenticación
+    path('login/', SocioLoginView.as_view(), name='login'),
+    path('logout/', SocioLogoutView.as_view(), name='logout'),
+    path('registro/', RegistroView.as_view(), name='registro'),
+    path('mi-perfil/', MiPerfilView.as_view(), name='mi_perfil'),
 ]

@@ -1,6 +1,7 @@
 
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
 import datetime
 
 class Concepto(models.Model):
@@ -29,6 +30,7 @@ class Categoria(models.Model):
         verbose_name_plural = "Categorías"
 
 class Socio(models.Model):
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='socio', null=True, blank=True)
     nombre = models.CharField(max_length=50)
     apellido = models.CharField(max_length=50)
     direccion = models.CharField(max_length=200)
@@ -38,6 +40,8 @@ class Socio(models.Model):
     celular = models.CharField(max_length=20)
     fecha_nacimiento = models.DateField()
     fecha_alta = models.DateField(auto_now_add=True)
+    # Campo para permisos especiales
+    es_administrador = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.nombre} {self.apellido} ({self.dni})"
