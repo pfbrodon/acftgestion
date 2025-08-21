@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="card mx-auto mt-5" style="max-width: 500px;">
+    <div class="card-body">
+      <h2 class="card-title text-danger">Eliminar Categoría</h2>
+      {% if categoria.socios.all %}
+        <div class="alert alert-warning">
+          <p>Esta categoría no puede ser eliminada porque tiene {{ categoria.socios.count }} socios asociados.</p>
+          <p>Debe reasignar estos socios a otra categoría antes de eliminar esta.</p>
+        </div>
+        <a href="{% url 'socios:listar_categorias' %}" class="btn btn-primary">Volver</a>
+      {% else %}
+        <p>¿Está seguro que desea eliminar la categoría <strong>{{ object.nombre }}</strong>?</p>
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Confirmar</button>
+          <a href="{% url 'socios:listar_categorias' %}" class="btn btn-secondary">Cancelar</a>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
