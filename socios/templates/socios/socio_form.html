@@ -8,7 +8,11 @@
         {% for field in form %}
           <div class="mb-3">
             {{ field.label_tag }}
-            {{ field }}
+            {% if field.name == 'fecha_nacimiento' and form.instance.fecha_nacimiento %}
+              <input type="date" name="fecha_nacimiento" class="form-control" value="{{ form.instance.fecha_nacimiento|date:'Y-m-d' }}" id="id_fecha_nacimiento">
+            {% else %}
+              {{ field }}
+            {% endif %}
             {% if field.errors %}
               <div class="text-danger small">{{ field.errors|striptags }}</div>
             {% endif %}

@@ -18,7 +18,7 @@ class SocioForm(forms.ModelForm):
             'fecha_nacimiento',
         ]
         widgets = {
-            'fecha_nacimiento': forms.DateInput(attrs={'type': 'date'}),
+            'fecha_nacimiento': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'categoria': forms.Select(attrs={'class': 'form-select'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'apellido': forms.TextInput(attrs={'class': 'form-control'}),
@@ -27,6 +27,12 @@ class SocioForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'celular': forms.TextInput(attrs={'class': 'form-control'}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Asegurarse de que la fecha de nacimiento se muestre en el formato correcto
+        if self.instance.pk and self.instance.fecha_nacimiento:
+            self.initial['fecha_nacimiento'] = self.instance.fecha_nacimiento.strftime('%Y-%m-%d')
 
 class CategoriaForm(forms.ModelForm):
     class Meta:
@@ -66,16 +72,44 @@ class PagoForm(forms.ModelForm):
         ]
         
         meses = []
+        # Fecha actual
         hoy = timezone.now()
-        for i in range(-2, 10):  # Desde 2 meses atrás hasta 9 meses adelante
-            fecha = hoy + timezone.timedelta(days=30 * i)
-            # Obtener el nombre del mes en español
-            nombre_mes = nombres_meses[fecha.month]
-            valor = f"{nombre_mes} {fecha.year}"
-            meses.append((valor, valor))
+        
+        # Año y mes iniciales (2025-01)
+        anio_inicial = 2025
+        mes_inicial = 1
+        
+        # Año y mes actuales
+        anio_actual = hoy.year
+        mes_actual = hoy.month
+        
+        # Año y mes finales (2 años después del actual)
+        anio_final = anio_actual + 2
+        mes_final = mes_actual
+        
+        # Crear lista de meses desde enero 2025 hasta 2 años después del actual
+        for anio in range(anio_inicial, anio_final + 1):
+            for mes in range(1, 13):
+                # Omitir meses anteriores a enero 2025
+                if anio == anio_inicial and mes < mes_inicial:
+                    continue
+                # Omitir meses posteriores al mes_final en el año_final
+                if anio == anio_final and mes > mes_final:
+                    continue
+                
+                nombre_mes = nombres_meses[mes]
+                valor = f"{nombre_mes} {anio}"
+                meses.append((valor, valor))
+        
+        # Establecer como valor inicial el mes actual
+        valor_mes_actual = f"{nombres_meses[mes_actual]} {anio_actual}"
+        
+        # Buscar el índice del mes actual en la lista para establecerlo como inicial
+        mes_actual_index = next((i for i, (val, _) in enumerate(meses) if val == valor_mes_actual), 0)
         
         self.fields['mes_correspondiente'] = forms.ChoiceField(
             choices=meses,
+            initial=meses[mes_actual_index][0] if meses else '',
             widget=forms.Select(attrs={'class': 'form-select'})
         )
         
