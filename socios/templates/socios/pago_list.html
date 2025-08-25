@@ -1,137 +1,343 @@
 {% extends 'base.html' %}
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="mb-0">Registro de Pagos</h1>
-  <a href="{% url 'socios:crear_pago_general' %}" class="btn btn-success">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cash" viewBox="0 0 16 16">
-      <path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-      <path d="M0 4a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V4zm3 0a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H3z"/>
-    </svg>
-    Nuevo Pago
-  </a>
-</div>
+{% load static %}
 
-<div class="card">
-  <div class="card-header">
-    <form method="get" class="row g-3">
-      <div class="col-md-3">
-        <label for="socio" class="form-label">Socio</label>
-        <select name="socio" id="socio" class="form-select">
-          <option value="">Todos</option>
-          {% for s in socios %}
-            <option value="{{ s.id }}" {% if request.GET.socio == s.id|stringformat:"i" %}selected{% endif %}>{{ s.nombre }} {{ s.apellido }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label for="fecha_desde" class="form-label">Desde</label>
-        <input type="date" name="fecha_desde" id="fecha_desde" class="form-control" value="{{ request.GET.fecha_desde }}">
-      </div>
-      <div class="col-md-3">
-        <label for="fecha_hasta" class="form-label">Hasta</label>
-        <input type="date" name="fecha_hasta" id="fecha_hasta" class="form-control" value="{{ request.GET.fecha_hasta }}">
-      </div>
-      <div class="col-md-3 d-flex align-items-end">
-        <button type="submit" class="btn btn-primary">Filtrar</button>
-        <a href="{% url 'socios:listar_pagos' %}" class="btn btn-secondary ms-2">Limpiar</a>
-      </div>
-    </form>
-  </div>
-  <div class="card-body">
-    <div class="table-responsive">
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Socio</th>
-            <th>Cuota</th>
-            <th>Fecha</th>
-            <th>Monto</th>
-            <th>Método</th>
-            <th>Comprobante</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for pago in pagos %}
-          <tr>
-            <td>
-              <a href="{% url 'socios:detalle_socio' pago.socio.id %}">{{ pago.socio.nombre }} {{ pago.socio.apellido }}</a>
-            </td>
-            <td>
-              {% if pago.cuota %}
-                {{ pago.cuota }}
-              {% else %}
-                <!-- Pago antiguo -->
-                {{ pago.concepto.nombre|default:"-" }} - {{ pago.mes_correspondiente|default:"-" }}
-              {% endif %}
-            </td>
-            <td>{{ pago.fecha_pago }}</td>
-            <td>${{ pago.monto }}</td>
-            <td>{{ pago.get_metodo_pago_display }}</td>
-            <td>{{ pago.comprobante|default:"-" }}</td>
-            <td>
-              <div class="btn-group btn-group-sm">
-                <a href="{% url 'socios:editar_pago' pago.pk %}" class="btn btn-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
-                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
-                  </svg>
-                </a>
-                <a href="{% url 'socios:eliminar_pago' pago.pk %}" class="btn btn-danger">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
-                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
-                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
-                  </svg>
-                </a>
-              </div>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="8" class="text-center">No se encontraron pagos.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+{% block title %}Lista de Pagos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header con título y botón -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+      <i class="bi bi-credit-card text-success me-2"></i>
+      Registro de Pagos
+    </h1>
+    <div class="d-flex gap-2">
+      <a href="{% url 'socios:crear_pago_general' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle me-1"></i>
+        Nuevo Pago
+      </a>
+      <a href="{% url 'caja:resumen' %}" class="btn btn-outline-primary">
+        <i class="bi bi-cash-stack me-1"></i>
+        Ver Caja
+      </a>
     </div>
   </div>
-  <div class="card-footer">
-    <div class="d-flex justify-content-between align-items-center">
-      <p class="mb-0">Total: <strong>${{ total_pagos }}</strong></p>
-      
-      {% if pagos.has_other_pages %}
-      <nav aria-label="Paginación">
-        <ul class="pagination mb-0">
-          {% if pagos.has_previous %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ pagos.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Anterior</a>
-            </li>
-          {% else %}
-            <li class="page-item disabled">
-              <span class="page-link">Anterior</span>
-            </li>
-          {% endif %}
-          
-          {% for i in pagos.paginator.page_range %}
-            {% if pagos.number == i %}
-              <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+
+  <!-- Tarjetas de resumen -->
+  <div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-success shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-success mb-1">Total Pagos</h6>
+              <h4 class="mb-0 text-success">
+                <i class="bi bi-currency-dollar me-1"></i>
+                {{ total_pagos|floatformat:0 }}
+              </h4>
+            </div>
+            <i class="bi bi-cash-coin display-6 text-success opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-info shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-info mb-1">Cantidad</h6>
+              <h4 class="mb-0 text-info">{{ pagos.paginator.count|default:0 }}</h4>
+            </div>
+            <i class="bi bi-list-ol display-6 text-info opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-primary shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-primary mb-1">Promedio</h6>
+              <h4 class="mb-0 text-primary">
+                <i class="bi bi-currency-dollar me-1"></i>
+                {{ promedio_pagos|floatformat:0 }}
+              </h4>
+            </div>
+            <i class="bi bi-graph-up display-6 text-primary opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-warning shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-warning mb-1">Este Mes</h6>
+              <h4 class="mb-0 text-warning">{{ pagos_mes_actual }}</h4>
+            </div>
+            <i class="bi bi-calendar-month display-6 text-warning opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+      <h6 class="mb-0">
+        <i class="bi bi-funnel me-1"></i>
+        Filtros de Búsqueda
+      </h6>
+    </div>
+    <div class="card-body">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label for="socio" class="form-label">
+            <i class="bi bi-person me-1"></i>
+            Socio
+          </label>
+          <select name="socio" id="socio" class="form-select">
+            <option value="">Todos los socios</option>
+            {% for s in socios %}
+              <option value="{{ s.id }}" {% if request.GET.socio == s.id|stringformat:"i" %}selected{% endif %}>
+                {{ s.nombre }} {{ s.apellido }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="fecha_desde" class="form-label">
+            <i class="bi bi-calendar-event me-1"></i>
+            Fecha Desde
+          </label>
+          <input type="date" name="fecha_desde" id="fecha_desde" class="form-control" 
+                 value="{{ request.GET.fecha_desde }}">
+        </div>
+        <div class="col-md-3">
+          <label for="fecha_hasta" class="form-label">
+            <i class="bi bi-calendar-check me-1"></i>
+            Fecha Hasta
+          </label>
+          <input type="date" name="fecha_hasta" id="fecha_hasta" class="form-control" 
+                 value="{{ request.GET.fecha_hasta }}">
+        </div>
+        <div class="col-md-3">
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">
+              <i class="bi bi-search me-1"></i>
+              Filtrar
+            </button>
+            <a href="{% url 'socios:listar_pagos' %}" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i>
+              Limpiar
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lista de pagos -->
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      {% if pagos %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">
+                  <i class="bi bi-person me-1"></i>
+                  Socio
+                </th>
+                <th scope="col">
+                  <i class="bi bi-calendar-month me-1"></i>
+                  Cuota/Concepto
+                </th>
+                <th scope="col">
+                  <i class="bi bi-calendar-event me-1"></i>
+                  Fecha
+                </th>
+                <th scope="col">
+                  <i class="bi bi-currency-dollar me-1"></i>
+                  Monto
+                </th>
+                <th scope="col">
+                  <i class="bi bi-credit-card me-1"></i>
+                  Método
+                </th>
+                <th scope="col">
+                  <i class="bi bi-receipt me-1"></i>
+                  Comprobante
+                </th>
+                <th scope="col" class="text-center">
+                  <i class="bi bi-gear me-1"></i>
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pago in pagos %}
+                <tr>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="avatar-circle bg-primary text-white me-3">
+                        {{ pago.socio.nombre.0 }}{{ pago.socio.apellido.0 }}
+                      </div>
+                      <div>
+                        <a href="{% url 'socios:detalle_socio' pago.socio.id %}" 
+                           class="fw-semibold text-decoration-none">
+                          {{ pago.socio.nombre }} {{ pago.socio.apellido }}
+                        </a>
+                        <br>
+                        <small class="text-muted">{{ pago.socio.categoria }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {% if pago.cuota %}
+                      <span class="badge bg-primary fs-6">
+                        <i class="bi bi-calendar-month me-1"></i>
+                        {{ pago.cuota }}
+                      </span>
+                    {% else %}
+                      <span class="badge bg-secondary fs-6">
+                        <i class="bi bi-card-text me-1"></i>
+                        {{ pago.concepto.nombre|default:"-" }}
+                      </span>
+                      {% if pago.mes_correspondiente %}
+                        <br>
+                        <small class="text-muted">{{ pago.mes_correspondiente }}/{{ pago.año_correspondiente }}</small>
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="fw-semibold">{{ pago.fecha_pago|date:"d/m/Y" }}</span>
+                    <br>
+                    <small class="text-muted">{{ pago.fecha_pago|date:"l" }}</small>
+                  </td>
+                  <td>
+                    <span class="badge bg-success fs-6">
+                      <i class="bi bi-currency-dollar me-1"></i>
+                      {{ pago.monto|floatformat:0 }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="text-muted">{{ pago.get_metodo_pago_display }}</span>
+                  </td>
+                  <td>
+                    {% if pago.comprobante %}
+                      <span class="badge bg-info">
+                        <i class="bi bi-check-circle me-1"></i>
+                        {{ pago.comprobante }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+                      <a href="{% url 'socios:editar_pago' pago.pk %}" 
+                         class="btn btn-outline-primary" 
+                         title="Editar pago">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+                      <a href="{% url 'socios:eliminar_pago' pago.pk %}" 
+                         class="btn btn-outline-danger" 
+                         title="Eliminar pago"
+                         onclick="return confirm('¿Está seguro de que desea eliminar este pago?')">
+                        <i class="bi bi-trash"></i>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if pagos.has_other_pages %}
+          <div class="card-footer">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <small class="text-muted">
+                  Mostrando {{ pagos.start_index }}-{{ pagos.end_index }} de {{ pagos.paginator.count }} pagos
+                </small>
+              </div>
+              
+              <nav aria-label="Navegación de páginas">
+                <ul class="pagination mb-0">
+                  {% if pagos.has_previous %}
+                    <li class="page-item">
+                      <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-double-left"></i>
+                      </a>
+                    </li>
+                    <li class="page-item">
+                      <a class="page-link" href="?page={{ pagos.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-left"></i>
+                      </a>
+                    </li>
+                  {% endif %}
+                  
+                  <li class="page-item active">
+                    <span class="page-link">
+                      Página {{ pagos.number }} de {{ pagos.paginator.num_pages }}
+                    </span>
+                  </li>
+                  
+                  {% if pagos.has_next %}
+                    <li class="page-item">
+                      <a class="page-link" href="?page={{ pagos.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-right"></i>
+                      </a>
+                    </li>
+                    <li class="page-item">
+                      <a class="page-link" href="?page={{ pagos.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="bi bi-chevron-double-right"></i>
+                      </a>
+                    </li>
+                  {% endif %}
+                </ul>
+              </nav>
+            </div>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="text-center py-5">
+          <i class="bi bi-inbox display-1 text-muted"></i>
+          <h5 class="text-muted mt-3">No se encontraron pagos</h5>
+          <p class="text-muted">
+            {% if request.GET.socio or request.GET.fecha_desde or request.GET.fecha_hasta %}
+              No hay pagos que coincidan con los filtros aplicados.
             {% else %}
-              <li class="page-item"><a class="page-link" href="?page={{ i }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ i }}</a></li>
+              Aún no se han registrado pagos en el sistema.
             {% endif %}
-          {% endfor %}
-          
-          {% if pagos.has_next %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ pagos.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Siguiente</a>
-            </li>
-          {% else %}
-            <li class="page-item disabled">
-              <span class="page-link">Siguiente</span>
-            </li>
-          {% endif %}
-        </ul>
-      </nav>
+          </p>
+          <a href="{% url 'socios:crear_pago_general' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>
+            Registrar primer pago
+          </a>
+        </div>
       {% endif %}
     </div>
   </div>
 </div>
+
+<style>
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+</style>
 {% endblock %}

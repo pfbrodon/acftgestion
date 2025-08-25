@@ -192,11 +192,11 @@ class PagoListView(LoginRequiredMixin, EsAdministradorMixin, ListView):
     model = Pago
     template_name = 'socios/pago_list.html'
     context_object_name = 'pagos'
-    paginate_by = 10
+    paginate_by = 24  # Aumentar a 24 como en otras listas
     login_url = 'socios:login'
     
     def get_queryset(self):
-        queryset = super().get_queryset().select_related('socio')
+        queryset = super().get_queryset().select_related('socio', 'concepto', 'cuota')
         socio_id = self.request.GET.get('socio')
         fecha_desde = self.request.GET.get('fecha_desde')
         fecha_hasta = self.request.GET.get('fecha_hasta')
@@ -208,9 +208,11 @@ class PagoListView(LoginRequiredMixin, EsAdministradorMixin, ListView):
         if fecha_hasta:
             queryset = queryset.filter(fecha_pago__lte=fecha_hasta)
         
-        return queryset.order_by('-fecha_pago')
+        return queryset.order_by('-fecha_pago', '-id')
     
     def get_context_data(self, **kwargs):
+        from datetime import date
+        
         context = super().get_context_data(**kwargs)
         context['socios'] = Socio.objects.all().order_by('apellido', 'nombre')
         
@@ -218,6 +220,22 @@ class PagoListView(LoginRequiredMixin, EsAdministradorMixin, ListView):
         pagos = self.get_queryset()
         total = sum(pago.monto for pago in pagos)
         context['total_pagos'] = total
+        
+        # Calcular promedio
+        cantidad_pagos = pagos.count()
+        if cantidad_pagos > 0:
+            context['promedio_pagos'] = total / cantidad_pagos
+        else:
+            context['promedio_pagos'] = 0
+        
+        # Calcular pagos del mes actual
+        hoy = date.today()
+        primer_dia_mes = hoy.replace(day=1)
+        pagos_mes_actual = Pago.objects.filter(
+            fecha_pago__gte=primer_dia_mes,
+            fecha_pago__lte=hoy
+        ).count()
+        context['pagos_mes_actual'] = pagos_mes_actual
         
         return context
         
