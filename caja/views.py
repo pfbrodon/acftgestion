@@ -23,6 +23,12 @@ class MovimientoCajaListView(ListView):
         fecha_desde = self.request.GET.get('fecha_desde')
         fecha_hasta = self.request.GET.get('fecha_hasta')
         
+        # Si no se especifican fechas, usar el mes actual por defecto
+        if not fecha_desde and not fecha_hasta:
+            hoy = date.today()
+            fecha_desde = hoy.replace(day=1).isoformat()
+            fecha_hasta = hoy.isoformat()
+        
         if tipo:
             queryset = queryset.filter(tipo=tipo)
         
@@ -43,6 +49,18 @@ class MovimientoCajaListView(ListView):
         # Datos para filtros
         context['categorias'] = CategoriaMovimiento.objects.filter(activo=True)
         context['tipos'] = TipoMovimiento.choices
+        
+        # Fechas actuales para los filtros
+        fecha_desde = self.request.GET.get('fecha_desde')
+        fecha_hasta = self.request.GET.get('fecha_hasta')
+        
+        if not fecha_desde and not fecha_hasta:
+            hoy = date.today()
+            fecha_desde = hoy.replace(day=1).isoformat()
+            fecha_hasta = hoy.isoformat()
+        
+        context['fecha_desde_actual'] = fecha_desde
+        context['fecha_hasta_actual'] = fecha_hasta
         
         # Totales del período filtrado
         queryset = self.get_queryset()

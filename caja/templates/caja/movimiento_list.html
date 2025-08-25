@@ -70,6 +70,16 @@
 
   <!-- Filtros -->
   <div class="card shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <h6 class="mb-0">
+        <i class="bi bi-funnel me-1"></i>
+        Filtros de Búsqueda
+      </h6>
+      <small class="text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        Por defecto se muestran los movimientos del mes actual
+      </small>
+    </div>
     <div class="card-body">
       <form method="GET" class="row g-3 align-items-end">
         <div class="col-md-2">
@@ -106,7 +116,7 @@
             Desde
           </label>
           <input type="date" class="form-control" name="fecha_desde" id="fecha_desde" 
-                 value="{{ request.GET.fecha_desde }}">
+                 value="{{ request.GET.fecha_desde|default:fecha_desde_actual }}">
         </div>
         <div class="col-md-2">
           <label for="fecha_hasta" class="form-label">
@@ -114,7 +124,7 @@
             Hasta
           </label>
           <input type="date" class="form-control" name="fecha_hasta" id="fecha_hasta" 
-                 value="{{ request.GET.fecha_hasta }}">
+                 value="{{ request.GET.fecha_hasta|default:fecha_hasta_actual }}">
         </div>
         <div class="col-md-3">
           <div class="d-flex gap-2">
@@ -130,6 +140,7 @@
         </div>
       </form>
     </div>
+  </div>
   </div>
 
   <!-- Tabla de movimientos -->
