@@ -1,6 +1,6 @@
 from django import forms
 from django.utils import timezone
-from .models import Socio, Categoria, Pago, Concepto
+from .models import Socio, Categoria, Pago, Concepto, Cuota
 import calendar
 import locale
 
@@ -63,68 +63,22 @@ class PagoForm(forms.ModelForm):
             self.fields['socio'].initial = socio
             self.fields['socio'].widget = forms.HiddenInput()
             
-        # Generar opciones para mes_correspondiente
-        # Lista de nombres de meses en español
-        nombres_meses = [
-            '',  # Para que el índice coincida con el número del mes (enero = 1)
-            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-        ]
+        # Filtrar solo cuotas activas y ordenar por fecha
+        self.fields['cuota'].queryset = Cuota.objects.filter(activa=True).order_by('-anio', '-mes')
+        self.fields['cuota'].widget.attrs.update({'class': 'form-select', 'id': 'id_cuota'})
         
-        meses = []
-        # Fecha actual
-        hoy = timezone.now()
-        
-        # Año y mes iniciales (2025-01)
-        anio_inicial = 2025
-        mes_inicial = 1
-        
-        # Año y mes actuales
-        anio_actual = hoy.year
-        mes_actual = hoy.month
-        
-        # Año y mes finales (2 años después del actual)
-        anio_final = anio_actual + 2
-        mes_final = mes_actual
-        
-        # Crear lista de meses desde enero 2025 hasta 2 años después del actual
-        for anio in range(anio_inicial, anio_final + 1):
-            for mes in range(1, 13):
-                # Omitir meses anteriores a enero 2025
-                if anio == anio_inicial and mes < mes_inicial:
-                    continue
-                # Omitir meses posteriores al mes_final en el año_final
-                if anio == anio_final and mes > mes_final:
-                    continue
-                
-                nombre_mes = nombres_meses[mes]
-                valor = f"{nombre_mes} {anio}"
-                meses.append((valor, valor))
-        
-        # Establecer como valor inicial el mes actual
-        valor_mes_actual = f"{nombres_meses[mes_actual]} {anio_actual}"
-        
-        # Buscar el índice del mes actual en la lista para establecerlo como inicial
-        mes_actual_index = next((i for i, (val, _) in enumerate(meses) if val == valor_mes_actual), 0)
-        
-        self.fields['mes_correspondiente'] = forms.ChoiceField(
-            choices=meses,
-            initial=meses[mes_actual_index][0] if meses else '',
-            widget=forms.Select(attrs={'class': 'form-select'})
-        )
-        
-        # Filtrar solo conceptos activos
-        self.fields['concepto'].queryset = Concepto.objects.filter(activo=True)
-        self.fields['concepto'].widget.attrs.update({'class': 'form-select'})
+        # Si estamos editando, no mostrar cuotas ya pagadas por este socio
+        if socio and not self.instance.pk:
+            cuotas_pagadas = Pago.objects.filter(socio=socio).values_list('cuota_id', flat=True)
+            self.fields['cuota'].queryset = self.fields['cuota'].queryset.exclude(id__in=cuotas_pagadas)
         
     class Meta:
         model = Pago
         fields = [
             'socio',
-            'concepto',
+            'cuota',
             'monto',
             'fecha_pago',
-            'mes_correspondiente',
             'metodo_pago',
             'comprobante',
             'comentarios'
@@ -141,3 +95,29 @@ class PagoForm(forms.ModelForm):
             'comprobante': forms.TextInput(attrs={'class': 'form-control'}),
             'comentarios': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+# Formulario para gestionar cuotas
+class CuotaForm(forms.ModelForm):
+    class Meta:
+        model = Cuota
+        fields = ['concepto', 'mes', 'anio', 'monto', 'activa']
+        widgets = {
+            'concepto': forms.Select(attrs={'class': 'form-select', 'id': 'id_concepto'}),
+            'mes': forms.Select(choices=[(i, f"{i:02d}") for i in range(1, 13)], attrs={'class': 'form-select'}),
+            'anio': forms.NumberInput(attrs={'class': 'form-control', 'min': 2024, 'max': 2030}),
+            'monto': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': True, 'id': 'id_monto'}),
+            'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filtrar solo conceptos activos
+        self.fields['concepto'].queryset = Concepto.objects.filter(activo=True)
+        
+        # Si ya hay una instancia con concepto, establecer el monto basado en el concepto
+        if self.instance and self.instance.pk:
+            try:
+                if self.instance.concepto:
+                    self.fields['monto'].initial = self.instance.concepto.monto_sugerido
+            except Concepto.DoesNotExist:
+                pass

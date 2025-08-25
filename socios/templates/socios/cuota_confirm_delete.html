@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card mx-auto mt-5" style="max-width: 500px;">
+  <div class="card-body">
+    <h2 class="card-title text-danger">Eliminar Cuota</h2>
+    <p>¿Está seguro que desea eliminar la cuota de <strong>
+      {% if object.mes == 1 %}Enero{% elif object.mes == 2 %}Febrero{% elif object.mes == 3 %}Marzo{% elif object.mes == 4 %}Abril{% elif object.mes == 5 %}Mayo{% elif object.mes == 6 %}Junio{% elif object.mes == 7 %}Julio{% elif object.mes == 8 %}Agosto{% elif object.mes == 9 %}Septiembre{% elif object.mes == 10 %}Octubre{% elif object.mes == 11 %}Noviembre{% elif object.mes == 12 %}Diciembre{% endif %} 
+      {{ object.anio }}
+    </strong> del concepto <strong>{{ object.concepto.nombre }}</strong> por un monto de <strong>${{ object.monto }}</strong>?</p>
+    
+    {% if object.pagos.count > 0 %}
+    <div class="alert alert-warning">
+      <strong>Atención:</strong> Esta cuota tiene {{ object.pagos.count }} pago(s) asociado(s). 
+      Al eliminar la cuota, también se eliminarán estos pagos.
+    </div>
+    {% endif %}
+    
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Confirmar</button>
+      <a href="{% url 'socios:listar_cuotas' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

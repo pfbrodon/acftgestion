@@ -4,7 +4,8 @@ from .views import (
     CategoriaListView, CategoriaCreateView, CategoriaUpdateView, CategoriaDeleteView,
     PagoCreateView, PagoUpdateView, PagoDeleteView, PagoListView,
     ConceptoListView, ConceptoCreateView, ConceptoUpdateView, ConceptoDeleteView,
-    get_concepto_monto,
+    CuotaListView, CuotaCreateView, CuotaUpdateView, CuotaDeleteView,
+    get_cuota_monto, get_concepto_monto,
     # Vistas de autenticación
     SocioLoginView, SocioLogoutView, RegistroView, MiPerfilView
 )
@@ -31,13 +32,20 @@ urlpatterns = [
     path('pagos/nuevo/', PagoCreateView.as_view(), name='crear_pago_general'),
     path('pagos/editar/<int:pk>/', PagoUpdateView.as_view(), name='editar_pago'),
     path('pagos/eliminar/<int:pk>/', PagoDeleteView.as_view(), name='eliminar_pago'),
-    path('pagos/concepto-monto/', get_concepto_monto, name='get_concepto_monto'),
+    path('pagos/cuota-monto/', get_cuota_monto, name='get_cuota_monto'),
     
     # URLs para conceptos
     path('conceptos/', ConceptoListView.as_view(), name='listar_conceptos'),
     path('conceptos/nuevo/', ConceptoCreateView.as_view(), name='crear_concepto'),
     path('conceptos/editar/<int:pk>/', ConceptoUpdateView.as_view(), name='editar_concepto'),
     path('conceptos/eliminar/<int:pk>/', ConceptoDeleteView.as_view(), name='eliminar_concepto'),
+    path('conceptos/monto/', get_concepto_monto, name='get_concepto_monto'),
+    
+    # URLs para cuotas
+    path('cuotas/', CuotaListView.as_view(), name='listar_cuotas'),
+    path('cuotas/nueva/', CuotaCreateView.as_view(), name='crear_cuota'),
+    path('cuotas/editar/<int:pk>/', CuotaUpdateView.as_view(), name='editar_cuota'),
+    path('cuotas/eliminar/<int:pk>/', CuotaDeleteView.as_view(), name='eliminar_cuota'),
     
     # URLs para autenticación
     path('login/', SocioLoginView.as_view(), name='login'),

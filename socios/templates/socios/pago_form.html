@@ -24,19 +24,14 @@
         </div>
         
         <div class="mb-3">
-          {{ form.concepto.label_tag }}
-          {{ form.concepto }}
-          {% if form.concepto.errors %}
-            <div class="text-danger small">{{ form.concepto.errors|striptags }}</div>
+          <label for="{{ form.cuota.id_for_label }}" class="form-label">Cuota</label>
+          {{ form.cuota }}
+          {% if form.cuota.errors %}
+            <div class="text-danger small">{{ form.cuota.errors|striptags }}</div>
           {% endif %}
-        </div>
-        
-        <div class="mb-3">
-          {{ form.mes_correspondiente.label_tag }}
-          {{ form.mes_correspondiente }}
-          {% if form.mes_correspondiente.errors %}
-            <div class="text-danger small">{{ form.mes_correspondiente.errors|striptags }}</div>
-          {% endif %}
+          <div class="form-text">
+            Seleccione la cuota mensual correspondiente al pago.
+          </div>
         </div>
         
         <div class="mb-3">
@@ -101,20 +96,20 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Configuración para actualizar monto sugerido
-    const conceptoSelect = document.getElementById('id_concepto');
+    // Configuración para actualizar monto cuando se selecciona una cuota
+    const cuotaSelect = document.getElementById('id_cuota');
     const montoInput = document.getElementById('id_monto');
     
-    if (conceptoSelect && montoInput) {
-        conceptoSelect.addEventListener('change', function() {
-            const conceptoId = this.value;
-            if (conceptoId) {
-                // Hacer solicitud AJAX para obtener el monto sugerido
-                fetch(`/socios/pagos/concepto-monto/?concepto_id=${conceptoId}`)
+    if (cuotaSelect && montoInput) {
+        cuotaSelect.addEventListener('change', function() {
+            const cuotaId = this.value;
+            if (cuotaId) {
+                // Hacer solicitud AJAX para obtener el monto de la cuota
+                fetch(`/socios/pagos/cuota-monto/?cuota_id=${cuotaId}`)
                     .then(response => response.json())
                     .then(data => {
-                        if (data.monto_sugerido) {
-                            montoInput.value = data.monto_sugerido;
+                        if (data.monto) {
+                            montoInput.value = data.monto;
                         }
                     })
                     .catch(error => console.error('Error:', error));

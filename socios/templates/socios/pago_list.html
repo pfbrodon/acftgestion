@@ -43,9 +43,8 @@
         <thead>
           <tr>
             <th>Socio</th>
-            <th>Concepto</th>
+            <th>Cuota</th>
             <th>Fecha</th>
-            <th>Mes correspondiente</th>
             <th>Monto</th>
             <th>Método</th>
             <th>Comprobante</th>
@@ -58,9 +57,15 @@
             <td>
               <a href="{% url 'socios:detalle_socio' pago.socio.id %}">{{ pago.socio.nombre }} {{ pago.socio.apellido }}</a>
             </td>
-            <td>{{ pago.concepto.nombre|default:"-" }}</td>
+            <td>
+              {% if pago.cuota %}
+                {{ pago.cuota }}
+              {% else %}
+                <!-- Pago antiguo -->
+                {{ pago.concepto.nombre|default:"-" }} - {{ pago.mes_correspondiente|default:"-" }}
+              {% endif %}
+            </td>
             <td>{{ pago.fecha_pago }}</td>
-            <td>{{ pago.mes_correspondiente }}</td>
             <td>${{ pago.monto }}</td>
             <td>{{ pago.get_metodo_pago_display }}</td>
             <td>{{ pago.comprobante|default:"-" }}</td>

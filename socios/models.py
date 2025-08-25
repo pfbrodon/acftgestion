@@ -18,6 +18,40 @@ class Concepto(models.Model):
         verbose_name_plural = "Conceptos"
         ordering = ['nombre']
 
+class Cuota(models.Model):
+    """
+    Modelo para representar cuotas mensuales.
+    El código será: mes (01-12) + año (24, 25, etc.)
+    Ejemplo: enero 2024 = 0124, diciembre 2025 = 1225
+    """
+    codigo = models.CharField(max_length=4, unique=True, help_text="Formato: MMYY (ej: 0124 para enero 2024)")
+    mes = models.IntegerField(help_text="Mes (1-12)")
+    anio = models.IntegerField(help_text="Año completo (ej: 2024)")
+    concepto = models.ForeignKey(Concepto, on_delete=models.PROTECT, related_name='cuotas')
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    activa = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        return f"{meses[self.mes]} {self.anio} - {self.concepto.nombre} (${self.monto})"
+    
+    def save(self, *args, **kwargs):
+        # Generar código automáticamente si no existe
+        if not self.codigo:
+            self.codigo = f"{self.mes:02d}{str(self.anio)[-2:]}"
+        # Sincronizar monto con el concepto siempre
+        if self.concepto:
+            self.monto = self.concepto.monto_sugerido
+        super().save(*args, **kwargs)
+    
+    class Meta:
+        verbose_name = "Cuota"
+        verbose_name_plural = "Cuotas"
+        ordering = ['-anio', '-mes']
+        unique_together = ['mes', 'anio', 'concepto']
+
 class Categoria(models.Model):
     nombre = models.CharField(max_length=50, unique=True)
     descripcion = models.TextField(blank=True, null=True)
@@ -47,19 +81,26 @@ class Socio(models.Model):
         return f"{self.nombre} {self.apellido} ({self.dni})"
     
     def get_estado_pagos(self):
-        """Retorna el estado de pagos del socio"""
+        """Retorna el estado de pagos del socio basado en cuotas"""
         hoy = timezone.now().date()
         mes_actual = hoy.month
         anio_actual = hoy.year
         
-        # Verificar si tiene pago en el mes actual
-        pago_mes_actual = self.pagos.filter(
-            fecha_pago__month=mes_actual,
-            fecha_pago__year=anio_actual
-        ).exists()
-        
-        if pago_mes_actual:
-            return "Al día"
+        # Buscar cuota del mes actual
+        try:
+            cuota_actual = Cuota.objects.filter(
+                mes=mes_actual,
+                anio=anio_actual,
+                activa=True
+            ).first()
+            
+            if cuota_actual:
+                # Verificar si tiene pago para la cuota actual
+                pago_mes_actual = self.pagos.filter(cuota=cuota_actual).exists()
+                if pago_mes_actual:
+                    return "Al día"
+        except Cuota.DoesNotExist:
+            pass
         
         # Verificar pagos en los últimos 3 meses
         tres_meses_atras = hoy - datetime.timedelta(days=90)
@@ -85,17 +126,31 @@ class Pago(models.Model):
     )
     
     socio = models.ForeignKey(Socio, on_delete=models.CASCADE, related_name='pagos')
-    concepto = models.ForeignKey(Concepto, on_delete=models.PROTECT, related_name='pagos', null=True)
+    # Campos antiguos para migración
+    concepto = models.ForeignKey(Concepto, on_delete=models.PROTECT, related_name='pagos_antiguos', null=True, blank=True)
+    mes_correspondiente = models.CharField(max_length=20, help_text="Mes al que corresponde el pago (ej: Enero 2025)", null=True, blank=True)
+    # Nuevo campo
+    cuota = models.ForeignKey(Cuota, on_delete=models.PROTECT, related_name='pagos', null=True, blank=True)
+    
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     fecha_pago = models.DateField(default=timezone.now)
-    mes_correspondiente = models.CharField(max_length=20, help_text="Mes al que corresponde el pago (ej: Enero 2025)")
     metodo_pago = models.CharField(max_length=15, choices=METODO_PAGO_CHOICES, default='efectivo')
     comprobante = models.CharField(max_length=100, blank=True, null=True, help_text="Número de comprobante o referencia")
     comentarios = models.TextField(blank=True, null=True)
     
     def __str__(self):
-        concepto_str = f" - {self.concepto}" if self.concepto else ""
-        return f"Pago {self.mes_correspondiente}{concepto_str} - {self.socio}"
+        if self.cuota:
+            return f"Pago {self.cuota} - {self.socio}"
+        else:
+            # Para pagos antiguos
+            concepto_str = f" - {self.concepto}" if self.concepto else ""
+            return f"Pago {self.mes_correspondiente}{concepto_str} - {self.socio}"
+    
+    def save(self, *args, **kwargs):
+        # Sincronizar monto con la cuota por defecto si es un pago nuevo
+        if not self.pk and self.cuota and not self.monto:
+            self.monto = self.cuota.monto
+        super().save(*args, **kwargs)
     
     class Meta:
         verbose_name = "Pago"

@@ -14,9 +14,30 @@
             
             <div class="alert alert-warning">
                 <i class="bi bi-exclamation-triangle-fill"></i> 
-                <strong>Advertencia:</strong> Esta acción no se puede deshacer. Si hay pagos asociados a este concepto, 
-                podría afectar la integridad de los datos.
+                <strong>Advertencia:</strong> Esta acción no se puede deshacer.
             </div>
+            
+            {% if cuotas_relacionadas > 0 %}
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill"></i> 
+                <strong>¡No se puede eliminar!</strong> Este concepto tiene <strong>{{ cuotas_relacionadas }} cuota(s)</strong> asociada(s). 
+                <br><small>Debe eliminar o cambiar el concepto de todas las cuotas relacionadas antes de poder eliminar este concepto.</small>
+            </div>
+            {% endif %}
+            
+            {% if pagos_antiguos > 0 %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle-fill"></i> 
+                Este concepto también tiene <strong>{{ pagos_antiguos }} pago(s) antiguo(s)</strong> asociado(s).
+            </div>
+            {% endif %}
+            
+            {% if cuotas_relacionadas == 0 and pagos_antiguos == 0 %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle-fill"></i> 
+                Este concepto no tiene elementos relacionados y puede ser eliminado de forma segura.
+            </div>
+            {% endif %}
             
             <div class="mt-4">
                 <form method="post">
@@ -25,9 +46,15 @@
                         <a href="{% url 'socios:listar_conceptos' %}" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> Cancelar
                         </a>
+                        {% if cuotas_relacionadas > 0 %}
+                        <button type="button" class="btn btn-danger" disabled title="No se puede eliminar mientras tenga cuotas asociadas">
+                            <i class="bi bi-trash"></i> No se puede eliminar
+                        </button>
+                        {% else %}
                         <button type="submit" class="btn btn-danger">
                             <i class="bi bi-trash"></i> Eliminar
                         </button>
+                        {% endif %}
                     </div>
                 </form>
             </div>

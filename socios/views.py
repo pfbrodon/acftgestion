@@ -6,8 +6,9 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth import login
-from .models import Socio, Categoria, Pago, Concepto
-from .forms import SocioForm, CategoriaForm, PagoForm, ConceptoForm
+from django.db.models import ProtectedError
+from .models import Socio, Categoria, Pago, Concepto, Cuota
+from .forms import SocioForm, CategoriaForm, PagoForm, ConceptoForm, CuotaForm
 from .auth_forms import RegistroUsuarioForm, LoginForm
 
 # Clase base para verificar si un usuario es administrador
@@ -257,19 +258,68 @@ class ConceptoDeleteView(LoginRequiredMixin, EsAdministradorMixin, DeleteView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Verificar si el concepto está siendo utilizado en algún pago
-        context['pagos_relacionados'] = self.object.pagos.count()
+        # Verificar si el concepto está siendo utilizado en alguna cuota
+        context['cuotas_relacionadas'] = self.object.cuotas.count()
+        # También verificar pagos antiguos que podrían estar relacionados
+        context['pagos_antiguos'] = getattr(self.object, 'pagos_antiguos', []).count() if hasattr(self.object, 'pagos_antiguos') else 0
         return context
     
     def delete(self, request, *args, **kwargs):
         concepto = self.get_object()
-        if concepto.pagos.exists():
-            messages.error(request, "No se puede eliminar este concepto porque tiene pagos asociados.")
+        try:
+            # Verificar si tiene cuotas asociadas
+            if concepto.cuotas.exists():
+                messages.error(request, "No se puede eliminar este concepto porque tiene cuotas asociadas.")
+                return redirect('socios:listar_conceptos')
+            # Verificar si tiene pagos antiguos
+            if hasattr(concepto, 'pagos_antiguos') and concepto.pagos_antiguos.exists():
+                messages.error(request, "No se puede eliminar este concepto porque tiene pagos antiguos asociados.")
+                return redirect('socios:listar_conceptos')
+            
+            messages.success(request, "Concepto eliminado exitosamente.")
+            return super().delete(request, *args, **kwargs)
+            
+        except ProtectedError as e:
+            # Capturar error de relaciones protegidas
+            cuotas_count = concepto.cuotas.count()
+            pagos_count = getattr(concepto, 'pagos_antiguos', []).count() if hasattr(concepto, 'pagos_antiguos') else 0
+            
+            if cuotas_count > 0:
+                messages.error(
+                    request, 
+                    f"No se puede eliminar este concepto porque tiene {cuotas_count} cuota(s) asociada(s). "
+                    f"Elimine o cambie todas las cuotas relacionadas primero."
+                )
+            elif pagos_count > 0:
+                messages.error(
+                    request, 
+                    f"No se puede eliminar este concepto porque tiene {pagos_count} pago(s) asociado(s)."
+                )
+            else:
+                messages.error(
+                    request, 
+                    "No se puede eliminar este concepto porque tiene elementos relacionados."
+                )
             return redirect('socios:listar_conceptos')
-        messages.success(request, "Concepto eliminado exitosamente.")
-        return super().delete(request, *args, **kwargs)
         
-# Vista para obtener el monto sugerido de un concepto
+# Vista para obtener el monto de una cuota
+def get_cuota_monto(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+        
+    # Verificar si es administrador
+    es_admin = request.user.is_superuser or (hasattr(request.user, 'socio') and request.user.socio.es_administrador)
+    if not es_admin:
+        return JsonResponse({'error': 'No tienes permisos suficientes'}, status=403)
+    
+    cuota_id = request.GET.get('cuota_id')
+    try:
+        cuota = Cuota.objects.get(pk=cuota_id)
+        return JsonResponse({'monto': float(cuota.monto)})
+    except (Cuota.DoesNotExist, ValueError):
+        return JsonResponse({'monto': 0})
+
+# Vista para obtener el monto de un concepto
 def get_concepto_monto(request):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'No autorizado'}, status=401)
@@ -282,9 +332,9 @@ def get_concepto_monto(request):
     concepto_id = request.GET.get('concepto_id')
     try:
         concepto = Concepto.objects.get(pk=concepto_id)
-        return JsonResponse({'monto_sugerido': float(concepto.monto_sugerido)})
+        return JsonResponse({'monto': float(concepto.monto_sugerido)})
     except (Concepto.DoesNotExist, ValueError):
-        return JsonResponse({'monto_sugerido': 0})
+        return JsonResponse({'monto': 0})
         
 # Vistas para autenticación
 class SocioLoginView(LoginView):
@@ -326,3 +376,74 @@ class MiPerfilView(LoginRequiredMixin, TemplateView):
             context['estado_pagos'] = socio.get_estado_pagos()
             context['es_admin'] = socio.es_administrador or self.request.user.is_superuser
         return context
+
+# Vistas para Cuotas
+class CuotaListView(LoginRequiredMixin, EsAdministradorMixin, ListView):
+    model = Cuota
+    template_name = 'socios/cuota_list.html'
+    context_object_name = 'cuotas'
+    paginate_by = 24  # Mostrar más cuotas por página
+    login_url = 'socios:login'
+    
+    def get_queryset(self):
+        queryset = Cuota.objects.all().order_by('-anio', '-mes')
+        
+        # Filtrar por año si se especifica
+        anio = self.request.GET.get('anio')
+        if anio:
+            try:
+                queryset = queryset.filter(anio=int(anio))
+            except ValueError:
+                pass  # Ignorar valores inválidos
+        
+        # Filtrar por estado si se especifica
+        activa = self.request.GET.get('activa')
+        if activa in ['True', 'False']:
+            queryset = queryset.filter(activa=activa == 'True')
+            
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_cuotas'] = Cuota.objects.count()
+        context['cuotas_activas'] = Cuota.objects.filter(activa=True).count()
+        context['cuotas_inactivas'] = Cuota.objects.filter(activa=False).count()
+        
+        # Agregar años disponibles para el filtro
+        context['anios_disponibles'] = Cuota.objects.values_list('anio', flat=True).distinct().order_by('-anio')
+        context['anio_seleccionado'] = self.request.GET.get('anio', '')
+        context['estado_seleccionado'] = self.request.GET.get('activa', '')
+        
+        return context
+
+class CuotaCreateView(LoginRequiredMixin, EsAdministradorMixin, CreateView):
+    model = Cuota
+    form_class = CuotaForm
+    template_name = 'socios/cuota_form.html'
+    success_url = reverse_lazy('socios:listar_cuotas')
+    login_url = 'socios:login'
+    
+    def form_valid(self, form):
+        messages.success(self.request, "Cuota creada exitosamente.")
+        return super().form_valid(form)
+
+class CuotaUpdateView(LoginRequiredMixin, EsAdministradorMixin, UpdateView):
+    model = Cuota
+    form_class = CuotaForm
+    template_name = 'socios/cuota_form.html'
+    success_url = reverse_lazy('socios:listar_cuotas')
+    login_url = 'socios:login'
+    
+    def form_valid(self, form):
+        messages.success(self.request, "Cuota actualizada exitosamente.")
+        return super().form_valid(form)
+
+class CuotaDeleteView(LoginRequiredMixin, EsAdministradorMixin, DeleteView):
+    model = Cuota
+    template_name = 'socios/cuota_confirm_delete.html'
+    success_url = reverse_lazy('socios:listar_cuotas')
+    login_url = 'socios:login'
+    
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "Cuota eliminada exitosamente.")
+        return super().delete(request, *args, **kwargs)

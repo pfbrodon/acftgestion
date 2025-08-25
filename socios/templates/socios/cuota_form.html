@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card mx-auto" style="max-width: 600px;">
+  <div class="card-header bg-primary text-white">
+    <h2 class="card-title mb-0">{% if form.instance.pk %}Editar Cuota{% else %}Nueva Cuota{% endif %}</h2>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="{{ form.concepto.id_for_label }}" class="form-label">Concepto</label>
+            {{ form.concepto }}
+            {% if form.concepto.errors %}
+              <div class="text-danger small">{{ form.concepto.errors|striptags }}</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="{{ form.monto.id_for_label }}" class="form-label">Monto</label>
+            {{ form.monto }}
+            {% if form.monto.errors %}
+              <div class="text-danger small">{{ form.monto.errors|striptags }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="{{ form.mes.id_for_label }}" class="form-label">Mes</label>
+            {{ form.mes }}
+            {% if form.mes.errors %}
+              <div class="text-danger small">{{ form.mes.errors|striptags }}</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="{{ form.anio.id_for_label }}" class="form-label">Año</label>
+            {{ form.anio }}
+            {% if form.anio.errors %}
+              <div class="text-danger small">{{ form.anio.errors|striptags }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <div class="form-check">
+          {{ form.activa }}
+          <label class="form-check-label" for="{{ form.activa.id_for_label }}">
+            Cuota activa
+          </label>
+        </div>
+        {% if form.activa.errors %}
+          <div class="text-danger small">{{ form.activa.errors|striptags }}</div>
+        {% endif %}
+        <div class="form-text">
+          Las cuotas inactivas no aparecerán en la lista al registrar pagos.
+        </div>
+      </div>
+      
+      {% if form.instance.pk %}
+      <div class="alert alert-info">
+        <strong>Código:</strong> {{ form.instance.codigo }}<br>
+        <small>El código se genera automáticamente basado en el mes y año.</small>
+      </div>
+      {% endif %}
+      
+      <div class="d-flex justify-content-between">
+        <a href="{% url 'socios:listar_cuotas' %}" class="btn btn-secondary">
+          <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-save"></i> Guardar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-completar monto cuando se selecciona un concepto
+    const conceptoSelect = document.getElementById('id_concepto');
+    const montoInput = document.getElementById('id_monto');
+    
+    if (conceptoSelect && montoInput) {
+        // Cargar monto inicial si ya hay un concepto seleccionado
+        if (conceptoSelect.value) {
+            loadConceptoMonto(conceptoSelect.value);
+        }
+        
+        conceptoSelect.addEventListener('change', function() {
+            const conceptoId = this.value;
+            if (conceptoId) {
+                loadConceptoMonto(conceptoId);
+            } else {
+                montoInput.value = '';
+            }
+        });
+    }
+    
+    function loadConceptoMonto(conceptoId) {
+        fetch(`{% url 'socios:get_concepto_monto' %}?concepto_id=${conceptoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.monto !== undefined) {
+                    montoInput.value = data.monto.toFixed(2);
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar el monto:', error);
+            });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="mb-0">
+      <i class="bi bi-calendar-month text-primary me-2"></i>
+      Gestión de Cuotas
+    </h1>
+    <p class="text-muted mb-0">
+      Total: <strong>{{ total_cuotas }}</strong> cuotas | 
+      Activas: <strong class="text-success">{{ cuotas_activas }}</strong> | 
+      Inactivas: <strong class="text-secondary">{{ cuotas_inactivas }}</strong>
+    </p>
+  </div>
+  <a href="{% url 'socios:crear_cuota' %}" class="btn btn-success btn-lg shadow-sm">
+    <i class="bi bi-plus-circle me-2"></i>
+    Nueva Cuota
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <div class="row align-items-end">
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">
+          <i class="bi bi-calendar-year text-primary me-1"></i>
+          Año
+        </label>
+        <form method="get" id="filterForm">
+          <select name="anio" class="form-select" id="anioFilter">
+            <option value="">Todos los años</option>
+            {% for anio in anios_disponibles %}
+              <option value="{{ anio }}" {% if anio_seleccionado == anio|stringformat:"s" %}selected{% endif %}>
+                {{ anio }}
+              </option>
+            {% endfor %}
+          </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">
+          <i class="bi bi-toggles text-primary me-1"></i>
+          Estado
+        </label>
+          <select name="activa" class="form-select" id="estadoFilter">
+            <option value="">Todos los estados</option>
+            <option value="True" {% if estado_seleccionado == "True" %}selected{% endif %}>Activas</option>
+            <option value="False" {% if estado_seleccionado == "False" %}selected{% endif %}>Inactivas</option>
+          </select>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-funnel me-1"></i>
+            Filtrar
+          </button>
+          <a href="{% url 'socios:listar_cuotas' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-clockwise me-1"></i>
+            Limpiar
+          </a>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-striped mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th class="text-center">
+              <i class="bi bi-hash me-1"></i>
+              Código
+            </th>
+            <th>
+              <i class="bi bi-calendar me-1"></i>
+              Período
+            </th>
+            <th>
+              <i class="bi bi-tag me-1"></i>
+              Concepto
+            </th>
+            <th class="text-end">
+              <i class="bi bi-currency-dollar me-1"></i>
+              Monto
+            </th>
+            <th class="text-center">
+              <i class="bi bi-toggle-on me-1"></i>
+              Estado
+            </th>
+            <th class="text-center">
+              <i class="bi bi-receipt me-1"></i>
+              Pagos
+            </th>
+            <th class="text-center">
+              <i class="bi bi-gear me-1"></i>
+              Acciones
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cuota in cuotas %}
+          <tr>
+            <td class="text-center">
+              <span class="badge bg-light text-dark border">{{ cuota.codigo }}</span>
+            </td>
+            <td>
+              <div class="d-flex align-items-center">
+                <i class="bi bi-calendar-event text-primary me-2"></i>
+                <span>
+                  {% if cuota.mes == 1 %}Enero{% elif cuota.mes == 2 %}Febrero{% elif cuota.mes == 3 %}Marzo{% elif cuota.mes == 4 %}Abril{% elif cuota.mes == 5 %}Mayo{% elif cuota.mes == 6 %}Junio{% elif cuota.mes == 7 %}Julio{% elif cuota.mes == 8 %}Agosto{% elif cuota.mes == 9 %}Septiembre{% elif cuota.mes == 10 %}Octubre{% elif cuota.mes == 11 %}Noviembre{% elif cuota.mes == 12 %}Diciembre{% endif %} 
+                  {{ cuota.anio }}
+                </span>
+              </div>
+            </td>
+            <td>
+              <div class="d-flex align-items-center">
+                <i class="bi bi-tag text-info me-2"></i>
+                {{ cuota.concepto.nombre }}
+              </div>
+            </td>
+            <td class="text-end">
+              <span class="fw-semibold text-success">${{ cuota.monto|floatformat:2 }}</span>
+            </td>
+            <td class="text-center">
+              {% if cuota.activa %}
+                <span class="badge bg-success">
+                  <i class="bi bi-check-circle me-1"></i>
+                  Activa
+                </span>
+              {% else %}
+                <span class="badge bg-secondary">
+                  <i class="bi bi-pause-circle me-1"></i>
+                  Inactiva
+                </span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if cuota.pagos.count > 0 %}
+                <span class="badge bg-info">
+                  <i class="bi bi-receipt me-1"></i>
+                  {{ cuota.pagos.count }}
+                </span>
+              {% else %}
+                <span class="badge bg-light text-muted">0</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="btn-group" role="group">
+                <a href="{% url 'socios:editar_cuota' cuota.pk %}" 
+                   class="btn btn-primary btn-sm" 
+                   title="Editar cuota">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{% url 'socios:eliminar_cuota' cuota.pk %}" 
+                   class="btn btn-danger btn-sm" 
+                   title="Eliminar cuota"
+                   onclick="return confirm('¿Está seguro de que desea eliminar esta cuota?')">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center">No hay cuotas registradas.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <!-- Paginación -->
+  {% if cuotas.has_other_pages %}
+  <div class="card-footer bg-light">
+    <div class="d-flex justify-content-between align-items-center">
+      <p class="mb-0 text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        Mostrando 
+        <strong>{{ cuotas.start_index }}-{{ cuotas.end_index }}</strong> 
+        de <strong>{{ cuotas.paginator.count }}</strong> cuotas
+      </p>
+      <nav aria-label="Paginación">
+        <ul class="pagination mb-0">
+          {% if cuotas.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page=1" title="Primera página">
+                <i class="bi bi-chevron-double-left"></i>
+                <span class="d-none d-sm-inline ms-1">Primera</span>
+              </a>
+            </li>
+            <li class="page-item">
+              <a class="page-link" href="?page={{ cuotas.previous_page_number }}" title="Página anterior">
+                <i class="bi bi-chevron-left"></i>
+                <span class="d-none d-sm-inline ms-1">Anterior</span>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">
+                <i class="bi bi-chevron-double-left"></i>
+                <span class="d-none d-sm-inline ms-1">Primera</span>
+              </span>
+            </li>
+            <li class="page-item disabled">
+              <span class="page-link">
+                <i class="bi bi-chevron-left"></i>
+                <span class="d-none d-sm-inline ms-1">Anterior</span>
+              </span>
+            </li>
+          {% endif %}
+          
+          <li class="page-item active">
+            <span class="page-link">
+              <i class="bi bi-file-earmark-text me-1"></i>
+              {{ cuotas.number }} de {{ cuotas.paginator.num_pages }}
+            </span>
+          </li>
+          
+          {% if cuotas.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ cuotas.next_page_number }}" title="Página siguiente">
+                <span class="d-none d-sm-inline me-1">Siguiente</span>
+                <i class="bi bi-chevron-right"></i>
+              </a>
+            </li>
+            <li class="page-item">
+              <a class="page-link" href="?page={{ cuotas.paginator.num_pages }}" title="Última página">
+                <span class="d-none d-sm-inline me-1">Última</span>
+                <i class="bi bi-chevron-double-right"></i>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">
+                <span class="d-none d-sm-inline me-1">Siguiente</span>
+                <i class="bi bi-chevron-right"></i>
+              </span>
+            </li>
+            <li class="page-item disabled">
+              <span class="page-link">
+                <span class="d-none d-sm-inline me-1">Última</span>
+                <i class="bi bi-chevron-double-right"></i>
+              </span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-envío de filtros cuando cambian
+    const anioFilter = document.getElementById('anioFilter');
+    const estadoFilter = document.getElementById('estadoFilter');
+    
+    if (anioFilter && estadoFilter) {
+        anioFilter.addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+        
+        estadoFilter.addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    }
+    
+    // Confirmación para eliminar
+    document.querySelectorAll('a[href*="eliminar"]').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            if (!confirm('¿Está seguro de que desea eliminar esta cuota?')) {
+                e.preventDefault();
+            }
+        });
+    });
+    
+    // Tooltips para botones
+    const tooltipTriggerList = document.querySelectorAll('[title]');
+    tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}
