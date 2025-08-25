@@ -2,7 +2,7 @@ from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, FormView, TemplateView
 from django.contrib import messages
 from django.shortcuts import redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth import login
@@ -10,6 +10,16 @@ from django.db.models import ProtectedError
 from .models import Socio, Categoria, Pago, Concepto, Cuota
 from .forms import SocioForm, CategoriaForm, PagoForm, ConceptoForm, CuotaForm
 from .auth_forms import RegistroUsuarioForm, LoginForm
+
+# Imports para PDF
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch, cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.colors import black, blue, grey
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from io import BytesIO
+from datetime import datetime
 
 # Clase base para verificar si un usuario es administrador
 class EsAdministradorMixin(UserPassesTestMixin):
@@ -465,3 +475,171 @@ class CuotaDeleteView(LoginRequiredMixin, EsAdministradorMixin, DeleteView):
     def delete(self, request, *args, **kwargs):
         messages.success(request, "Cuota eliminada exitosamente.")
         return super().delete(request, *args, **kwargs)
+
+# Vista para generar PDF del recibo de pago
+def generar_recibo_pdf(request, pago_id):
+    """Genera un PDF con el recibo de pago"""
+    pago = get_object_or_404(Pago, id=pago_id)
+    
+    # Verificar permisos
+    if not request.user.is_authenticated:
+        return HttpResponseForbidden("Acceso denegado")
+    
+    if not (request.user.is_superuser or 
+            (hasattr(request.user, 'socio') and request.user.socio.es_administrador) or
+            (hasattr(request.user, 'socio') and request.user.socio == pago.socio)):
+        return HttpResponseForbidden("No tiene permisos para ver este recibo")
+    
+    # Crear el PDF con la mitad del tamaño A4 y márgenes mínimos
+    buffer = BytesIO()
+    # A4 es 210x297mm, la mitad sería 210x148.5mm (aproximadamente 595x420 puntos)
+    page_width = 595  # Ancho A4 completo
+    page_height = 420  # Mitad de la altura A4
+    doc = SimpleDocTemplate(buffer, pagesize=(page_width, page_height), 
+                          rightMargin=1*cm, leftMargin=1*cm,
+                          topMargin=1*cm, bottomMargin=1*cm)
+    
+    # Estilos ultra compactos para una sola página
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=11,
+        spaceAfter=6,
+        alignment=TA_CENTER,
+        textColor=blue
+    )
+    
+    header_style = ParagraphStyle(
+        'CustomHeader',
+        parent=styles['Heading2'],
+        fontSize=9,
+        spaceAfter=4,
+        alignment=TA_LEFT,
+        textColor=black
+    )
+    
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=8,
+        spaceAfter=2,
+        alignment=TA_LEFT
+    )
+    
+    # Contenido del PDF
+    story = []
+    
+    # Título
+    title = Paragraph("RECIBO DE PAGO", title_style)
+    story.append(title)
+    story.append(Spacer(1, 4))
+    
+    # Información del club y número de recibo en la misma línea
+    fecha_actual = datetime.now()
+    numero_recibo = f"REC-{pago.id:06d}"
+    club_info = Paragraph(f"<b>Club de Ferromodelismo</b> - Recibo N°: {numero_recibo} - {fecha_actual.strftime('%d/%m/%Y')}", normal_style)
+    story.append(club_info)
+    story.append(Spacer(1, 6))
+    
+    # Información del socio
+    socio_header = Paragraph("DATOS DEL SOCIO", header_style)
+    story.append(socio_header)
+    
+    # Tabla con datos del socio
+    socio_data = [
+        ['Nombre completo:', f"{pago.socio.nombre} {pago.socio.apellido}"],
+        ['DNI:', pago.socio.dni or 'No especificado'],
+        ['Categoría:', str(pago.socio.categoria)],
+        ['Email:', pago.socio.email or 'No especificado'],
+        ['Teléfono:', pago.socio.celular or 'No especificado'],
+    ]
+    
+    socio_table = Table(socio_data, colWidths=[2.2*cm, 9.3*cm])
+    socio_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    
+    story.append(socio_table)
+    story.append(Spacer(1, 6))
+    
+    # Información del pago
+    pago_header = Paragraph("DETALLE DEL PAGO", header_style)
+    story.append(pago_header)
+    
+    # Determinar concepto
+    if pago.cuota:
+        concepto_pago = f"Cuota {pago.cuota}"
+        periodo = f"Período: {pago.cuota}"
+    else:
+        concepto_pago = pago.concepto.nombre if pago.concepto else "No especificado"
+        if pago.mes_correspondiente and pago.año_correspondiente:
+            periodo = f"Período: {pago.mes_correspondiente}/{pago.año_correspondiente}"
+        else:
+            periodo = "Período: No especificado"
+    
+    # Tabla con datos del pago
+    pago_data = [
+        ['Concepto:', concepto_pago],
+        ['', periodo],
+        ['Fecha de pago:', pago.fecha_pago.strftime('%d/%m/%Y')],
+        ['Método de pago:', pago.get_metodo_pago_display()],
+        ['Comprobante:', pago.comprobante or 'No especificado'],
+        ['Monto pagado:', f"$ {pago.monto:,.2f}"],
+    ]
+    
+    pago_table = Table(pago_data, colWidths=[2.2*cm, 9.3*cm])
+    pago_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        # Resaltar la fila del monto
+        ('BACKGROUND', (0, -1), (-1, -1), grey),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, -1), (-1, -1), 8),
+    ]))
+    
+    story.append(pago_table)
+    story.append(Spacer(1, 6))
+    
+    # Comentarios si existen (más compactos)
+    if pago.comentarios:
+        comentarios_text = Paragraph(f"<b>Observaciones:</b> {pago.comentarios}", normal_style)
+        story.append(comentarios_text)
+        story.append(Spacer(1, 4))
+    
+    # Pie de página ultra compacto
+    pie_style = ParagraphStyle(
+        'Pie',
+        parent=styles['Normal'],
+        fontSize=6,
+        alignment=TA_CENTER,
+        textColor=grey
+    )
+    
+    story.append(Spacer(1, 6))
+    pie = Paragraph("Este documento certifica el pago realizado - Club de Ferromodelismo", pie_style)
+    story.append(pie)
+    
+    # Generar el PDF
+    doc.build(story)
+    
+    # Configurar la respuesta HTTP
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    filename = f"recibo_pago_{numero_recibo}_{pago.socio.apellido}_{pago.socio.nombre}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response

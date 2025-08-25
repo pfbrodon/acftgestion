@@ -240,6 +240,12 @@
                   </td>
                   <td class="text-center">
                     <div class="btn-group btn-group-sm">
+                      <a href="{% url 'socios:recibo_pdf' pago.pk %}" 
+                         class="btn btn-outline-success" 
+                         title="Descargar recibo PDF"
+                         target="_blank">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                      </a>
                       <a href="{% url 'socios:editar_pago' pago.pk %}" 
                          class="btn btn-outline-primary" 
                          title="Editar pago">

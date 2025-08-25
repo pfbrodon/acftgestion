@@ -5,7 +5,7 @@ from .views import (
     PagoCreateView, PagoUpdateView, PagoDeleteView, PagoListView,
     ConceptoListView, ConceptoCreateView, ConceptoUpdateView, ConceptoDeleteView,
     CuotaListView, CuotaCreateView, CuotaUpdateView, CuotaDeleteView,
-    get_cuota_monto, get_concepto_monto,
+    get_cuota_monto, get_concepto_monto, generar_recibo_pdf,
     # Vistas de autenticación
     SocioLoginView, SocioLogoutView, RegistroView, MiPerfilView
 )
@@ -32,6 +32,7 @@ urlpatterns = [
     path('pagos/nuevo/', PagoCreateView.as_view(), name='crear_pago_general'),
     path('pagos/editar/<int:pk>/', PagoUpdateView.as_view(), name='editar_pago'),
     path('pagos/eliminar/<int:pk>/', PagoDeleteView.as_view(), name='eliminar_pago'),
+    path('pagos/<int:pago_id>/recibo-pdf/', generar_recibo_pdf, name='recibo_pdf'),
     path('pagos/cuota-monto/', get_cuota_monto, name='get_cuota_monto'),
     
     # URLs para conceptos
