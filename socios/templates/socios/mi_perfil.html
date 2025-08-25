@@ -1,134 +1,272 @@
-{% extends 'base.html' %}
 
+{% extends 'base.html' %}
 {% block content %}
-<div class="card mb-4">
-  <div class="card-header bg-primary text-white">
-    <h2 class="card-title mb-0">
-      {{ socio.nombre }} {{ socio.apellido }}
-      {% if estado_pagos == 'Al día' %}
-        <span class="badge bg-success float-end">Al día</span>
-      {% elif estado_pagos == 'Con atraso' %}
-        <span class="badge bg-warning text-dark float-end">Con atraso</span>
-      {% else %}
-        <span class="badge bg-danger float-end">Moroso</span>
-      {% endif %}
-    </h2>
+<!-- Encabezado del socio -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex align-items-center">
+    <div class="avatar-circle bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px; font-size: 24px;">
+      <i class="bi bi-person"></i>
+    </div>
+    <div>
+      <h1 class="mb-0">{{ socio.nombre }} {{ socio.apellido }}</h1>
+      <p class="text-muted mb-0">
+        <i class="bi bi-card-text me-1"></i>
+        DNI: {{ socio.dni }} |
+        <i class="bi bi-calendar-plus me-1"></i>
+        Socio desde {{ socio.fecha_alta|date:"d/m/Y" }}
+      </p>
+    </div>
   </div>
-  <div class="card-body">
-    <div class="row">
-      <div class="col-md-6">
-        <h4>Información Personal</h4>
-        <table class="table">
-          <tr>
-            <th>DNI:</th>
-            <td>{{ socio.dni }}</td>
-          </tr>
-          <tr>
-            <th>Dirección:</th>
-            <td>{{ socio.direccion }}</td>
-          </tr>
-          <tr>
-            <th>Categoría:</th>
-            <td>{{ socio.categoria }}</td>
-          </tr>
-          <tr>
-            <th>Email:</th>
-            <td>{{ socio.email }}</td>
-          </tr>
-          <tr>
-            <th>Celular:</th>
-            <td>{{ socio.celular }}</td>
-          </tr>
-          <tr>
-            <th>Fecha de Nacimiento:</th>
-            <td>{{ socio.fecha_nacimiento }}</td>
-          </tr>
-          <tr>
-            <th>Fecha de Alta:</th>
-            <td>{{ socio.fecha_alta }}</td>
-          </tr>
-        </table>
+  <div class="d-flex gap-2">
+    {% if estado_pagos == "Al día" %}
+      <span class="badge bg-success fs-6 px-3 py-2">
+        <i class="bi bi-check-circle me-1"></i>Al día
+      </span>
+    {% elif estado_pagos == "Con atraso" %}
+      <span class="badge bg-warning fs-6 px-3 py-2">
+        <i class="bi bi-clock me-1"></i>Con atraso
+      </span>
+    {% else %}
+      <span class="badge bg-danger fs-6 px-3 py-2">
+        <i class="bi bi-exclamation-triangle me-1"></i>Moroso
+      </span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Botones de acción principales -->
+<div class="d-flex gap-2 mb-4">
+  {% if es_admin %}
+    <a href="{% url 'socios:crear_pago' socio.pk %}" class="btn btn-success">
+      <i class="bi bi-cash me-2"></i>
+      Registrar Pago
+    </a>
+    <a href="{% url 'socios:editar' socio.pk %}" class="btn btn-primary">
+      <i class="bi bi-pencil me-2"></i>
+      Editar Socio
+    </a>
+    <a href="{% url 'socios:listar' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-2"></i>
+      Volver a la Lista
+    </a>
+  {% endif %}
+</div>
+
+<div class="row">
+  <div class="col-lg-4">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">
+          <i class="bi bi-person-lines-fill text-primary me-2"></i>
+          Información Personal
+        </h5>
       </div>
-      <div class="col-md-6">
-        <div class="d-flex justify-content-between align-items-center">
-          <h4>Historial de Pagos</h4>
-          {% if es_admin %}
-          <a href="{% url 'socios:crear_pago' socio.pk %}" class="btn btn-success">
-            <i class="bi bi-cash"></i> Registrar Pago
-          </a>
-          {% endif %}
-        </div>
-        
-        {% if pagos %}
-        <div class="table-responsive">
-          <table class="table table-sm table-striped">
-            <thead>
-              <tr>
-                <th>Cuota</th>
-                <th>Fecha</th>
-                <th>Monto</th>
-                <th>Método</th>
-                {% if es_admin %}
-                <th>Acciones</th>
-                {% endif %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for pago in pagos %}
-              <tr>
-                <td>
-                  {% if pago.cuota %}
-                    {{ pago.cuota }}
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-person-badge text-muted me-3"></i>
+              <div>
+                <label class="form-label small text-muted mb-0">DNI</label>
+                <div class="fw-semibold">{{ socio.dni|default:"No especificado" }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-tag text-muted me-3"></i>
+              <div>
+                <label class="form-label small text-muted mb-0">Categoría</label>
+                <div class="fw-semibold">
+                  <span class="badge bg-info">{{ socio.categoria }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-geo-alt text-muted me-3"></i>
+              <div>
+                <label class="form-label small text-muted mb-0">Dirección</label>
+                <div class="fw-semibold">{{ socio.direccion|default:"No especificada" }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-envelope text-muted me-3"></i>
+              <div>
+                <label class="form-label small text-muted mb-0">Email</label>
+                <div class="fw-semibold">
+                  {% if socio.email %}
+                    <a href="mailto:{{ socio.email }}" class="text-decoration-none">{{ socio.email }}</a>
                   {% else %}
-                    <!-- Pago antiguo -->
-                    {{ pago.concepto.nombre|default:"-" }} - {{ pago.mes_correspondiente|default:"-" }}
+                    No especificado
                   {% endif %}
-                </td>
-                <td>{{ pago.fecha_pago }}</td>
-                <td>${{ pago.monto }}</td>
-                <td>{{ pago.get_metodo_pago_display }}</td>
-                {% if es_admin %}
-                <td>
-                  <div class="btn-group btn-group-sm">
-                    <a href="{% url 'socios:editar_pago' pago.pk %}" class="btn btn-primary btn-sm">
-                      <i class="bi bi-pencil"></i>
-                    </a>
-                    <a href="{% url 'socios:eliminar_pago' pago.pk %}" class="btn btn-danger btn-sm">
-                      <i class="bi bi-trash"></i>
-                    </a>
-                  </div>
-                </td>
-                {% endif %}
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-phone text-muted me-3"></i>
+              <div>
+                <label class="form-label small text-muted mb-0">Celular</label>
+                <div class="fw-semibold">
+                  {% if socio.celular %}
+                    <a href="tel:{{ socio.celular }}" class="text-decoration-none">{{ socio.celular }}</a>
+                  {% else %}
+                    No especificado
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-calendar3 text-muted me-3"></i>
+              <div>
+                <label class="form-label small text-muted mb-0">Fecha de Nacimiento</label>
+                <div class="fw-semibold">
+                  {% if socio.fecha_nacimiento %}
+                    {{ socio.fecha_nacimiento|date:"d/m/Y" }}
+                  {% else %}
+                    No especificada
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-calendar-plus text-muted me-3"></i>
+              <div>
+                <label class="form-label small text-muted mb-0">Fecha de Alta</label>
+                <div class="fw-semibold">
+                  {% if socio.fecha_alta %}
+                    {{ socio.fecha_alta|date:"d/m/Y" }}
+                  {% else %}
+                    No especificada
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        {% else %}
-        <div class="alert alert-info">No hay pagos registrados.</div>
-        {% endif %}
       </div>
     </div>
   </div>
-  <div class="card-footer">
-    <div class="d-flex justify-content-between">
-      {% if es_admin %}
-      <a href="{% url 'socios:listar' %}" class="btn btn-secondary">
-        <i class="bi bi-arrow-left"></i> Volver a la lista
-      </a>
-      <div>
-        <a href="{% url 'socios:editar' socio.pk %}" class="btn btn-primary">
-          <i class="bi bi-pencil"></i> Editar socio
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="bi bi-credit-card text-success me-2"></i>
+          Historial de Pagos
+        </h5>
+        {% if es_admin %}
+        <a href="{% url 'socios:crear_pago' socio.pk %}" class="btn btn-success btn-sm">
+          <i class="bi bi-plus-circle me-1"></i>
+          Nuevo Pago
         </a>
-        <a href="{% url 'socios:eliminar' socio.pk %}" class="btn btn-danger">
-          <i class="bi bi-trash"></i> Eliminar socio
-        </a>
+        {% endif %}
       </div>
-      {% else %}
-      <a href="{% url 'socios:mi_perfil' %}" class="btn btn-secondary">
-        <i class="bi bi-arrow-left"></i> Volver
-      </a>
-      {% endif %}
+      <div class="card-body">
+        {% if pagos %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">
+                    <i class="bi bi-tag me-1"></i>
+                    Cuota/Concepto
+                  </th>
+                  <th scope="col">
+                    <i class="bi bi-calendar-event me-1"></i>
+                    Fecha
+                  </th>
+                  <th scope="col">
+                    <i class="bi bi-cash-coin me-1"></i>
+                    Monto
+                  </th>
+                  <th scope="col">
+                    <i class="bi bi-credit-card me-1"></i>
+                    Método
+                  </th>
+                  <th scope="col" class="text-center">
+                    <i class="bi bi-gear me-1"></i>
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for pago in pagos %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">
+                        {% if pago.cuota %}
+                          <span class="badge bg-primary">{{ pago.cuota }}</span>
+                        {% else %}
+                          <span class="badge bg-secondary">{{ pago.concepto.nombre|default:"-" }}</span>
+                          {% if pago.mes_correspondiente %}
+                            <small class="text-muted d-block">{{ pago.mes_correspondiente }}/{{ pago.año_correspondiente }}</small>
+                          {% endif %}
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <span class="fw-semibold">{{ pago.fecha_pago|date:"d/m/Y" }}</span>
+                    </td>
+                    <td>
+                      <span class="badge bg-success">
+                        <i class="bi bi-currency-dollar me-1"></i>
+                        {{ pago.monto|floatformat:0 }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="text-muted">{{ pago.get_metodo_pago_display }}</span>
+                    </td>
+                    <td class="text-center">
+                      <div class="btn-group btn-group-sm">
+                        <a href="{% url 'socios:recibo_pdf' pago.pk %}"
+                           class="btn btn-outline-success"
+                           title="Descargar recibo PDF"
+                           target="_blank">
+                          <i class="bi bi-file-earmark-pdf"></i>
+                        </a>
+                        {% if es_admin %}
+                        <a href="{% url 'socios:editar_pago' pago.pk %}"
+                           class="btn btn-outline-primary"
+                           title="Editar pago">
+                          <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'socios:eliminar_pago' pago.pk %}"
+                           class="btn btn-outline-danger"
+                           title="Eliminar pago"
+                           onclick="return confirm('¿Está seguro de que desea eliminar este pago?')">
+                          <i class="bi bi-trash"></i>
+                        </a>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h5 class="text-muted mt-3">Sin pagos registrados</h5>
+            <p class="text-muted">Aún no tienes pagos en el sistema.</p>
+            {% if es_admin %}
+            <a href="{% url 'socios:crear_pago' socio.pk %}" class="btn btn-primary">
+              <i class="bi bi-plus-circle me-2"></i>
+              Registrar primer pago
+            </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>

@@ -490,22 +490,26 @@ def generar_recibo_pdf(request, pago_id):
             (hasattr(request.user, 'socio') and request.user.socio == pago.socio)):
         return HttpResponseForbidden("No tiene permisos para ver este recibo")
     
+    # ===== CONFIGURACIÓN DEL TAMAÑO DE PÁGINA =====
     # Crear el PDF con la mitad del tamaño A4 y márgenes mínimos
     buffer = BytesIO()
     # A4 es 210x297mm, la mitad sería 210x148.5mm (aproximadamente 595x420 puntos)
-    page_width = 595  # Ancho A4 completo
-    page_height = 420  # Mitad de la altura A4
+    page_width = 595   # PARÁMETRO: Ancho de la página en puntos (595 = A4 completo)
+    page_height = 420  # PARÁMETRO: Alto de la página en puntos (420 = mitad de A4)
     doc = SimpleDocTemplate(buffer, pagesize=(page_width, page_height), 
-                          rightMargin=1*cm, leftMargin=1*cm,
-                          topMargin=1*cm, bottomMargin=1*cm)
+                          rightMargin=1*cm,  # PARÁMETRO: Margen derecho
+                          leftMargin=1*cm,   # PARÁMETRO: Margen izquierdo
+                          topMargin=1*cm,    # PARÁMETRO: Margen superior
+                          bottomMargin=1*cm) # PARÁMETRO: Margen inferior
     
+    # ===== CONFIGURACIÓN DE ESTILOS DE TEXTO =====
     # Estilos ultra compactos para una sola página
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=11,
-        spaceAfter=6,
+        fontSize=11,        # PARÁMETRO: Tamaño del título principal
+        spaceAfter=6,       # PARÁMETRO: Espacio después del título
         alignment=TA_CENTER,
         textColor=blue
     )
@@ -513,8 +517,8 @@ def generar_recibo_pdf(request, pago_id):
     header_style = ParagraphStyle(
         'CustomHeader',
         parent=styles['Heading2'],
-        fontSize=9,
-        spaceAfter=4,
+        fontSize=9,         # PARÁMETRO: Tamaño de los headers de sección
+        spaceAfter=4,       # PARÁMETRO: Espacio después de headers
         alignment=TA_LEFT,
         textColor=black
     )
@@ -522,25 +526,25 @@ def generar_recibo_pdf(request, pago_id):
     normal_style = ParagraphStyle(
         'CustomNormal',
         parent=styles['Normal'],
-        fontSize=8,
-        spaceAfter=2,
+        fontSize=8,         # PARÁMETRO: Tamaño del texto normal
+        spaceAfter=2,       # PARÁMETRO: Espacio después de párrafos normales
         alignment=TA_LEFT
     )
     
-    # Contenido del PDF
+    # ===== CONTENIDO DEL PDF =====
     story = []
     
     # Título
     title = Paragraph("RECIBO DE PAGO", title_style)
     story.append(title)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 4))  # PARÁMETRO: Espacio después del título
     
     # Información del club y número de recibo en la misma línea
     fecha_actual = datetime.now()
     numero_recibo = f"REC-{pago.id:06d}"
     club_info = Paragraph(f"<b>Club de Ferromodelismo</b> - Recibo N°: {numero_recibo} - {fecha_actual.strftime('%d/%m/%Y')}", normal_style)
     story.append(club_info)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 6))  # PARÁMETRO: Espacio después de info del club
     
     # Información del socio
     socio_header = Paragraph("DATOS DEL SOCIO", header_style)
@@ -555,20 +559,21 @@ def generar_recibo_pdf(request, pago_id):
         ['Teléfono:', pago.socio.celular or 'No especificado'],
     ]
     
-    socio_table = Table(socio_data, colWidths=[2.2*cm, 9.3*cm])
+    # ===== CONFIGURACIÓN DE TABLA DATOS DEL SOCIO =====
+    socio_table = Table(socio_data, colWidths=[2.2*cm, 9.3*cm])  # PARÁMETRO: Anchos de columnas
     socio_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 7),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),          # PARÁMETRO: Tamaño de fuente en tabla
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),       # PARÁMETRO: Padding izquierdo
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),      # PARÁMETRO: Padding derecho
+        ('TOPPADDING', (0, 0), (-1, -1), 0),        # PARÁMETRO: Padding superior
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),     # PARÁMETRO: Padding inferior
     ]))
     
     story.append(socio_table)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 6))  # PARÁMETRO: Espacio después de tabla socio
     
     # Información del pago
     pago_header = Paragraph("DETALLE DEL PAGO", header_style)
@@ -595,41 +600,43 @@ def generar_recibo_pdf(request, pago_id):
         ['Monto pagado:', f"$ {pago.monto:,.2f}"],
     ]
     
-    pago_table = Table(pago_data, colWidths=[2.2*cm, 9.3*cm])
+    # ===== CONFIGURACIÓN DE TABLA DATOS DEL PAGO =====
+    pago_table = Table(pago_data, colWidths=[2.2*cm, 9.3*cm])  # PARÁMETRO: Anchos de columnas
     pago_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 7),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),          # PARÁMETRO: Tamaño de fuente en tabla
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),       # PARÁMETRO: Padding izquierdo
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),      # PARÁMETRO: Padding derecho
+        ('TOPPADDING', (0, 0), (-1, -1), 0),        # PARÁMETRO: Padding superior
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),     # PARÁMETRO: Padding inferior
         # Resaltar la fila del monto
-        ('BACKGROUND', (0, -1), (-1, -1), grey),
+        ('BACKGROUND', (0, -1), (-1, -1), grey),    # PARÁMETRO: Color de fondo fila monto
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, -1), (-1, -1), 8),
+        ('FONTSIZE', (0, -1), (-1, -1), 8),         # PARÁMETRO: Tamaño fuente monto destacado
     ]))
     
     story.append(pago_table)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 6))  # PARÁMETRO: Espacio después de tabla pago
     
+    # ===== COMENTARIOS Y PIE DE PÁGINA =====
     # Comentarios si existen (más compactos)
     if pago.comentarios:
         comentarios_text = Paragraph(f"<b>Observaciones:</b> {pago.comentarios}", normal_style)
         story.append(comentarios_text)
-        story.append(Spacer(1, 4))
+        story.append(Spacer(1, 4))  # PARÁMETRO: Espacio después de comentarios
     
     # Pie de página ultra compacto
     pie_style = ParagraphStyle(
         'Pie',
         parent=styles['Normal'],
-        fontSize=6,
+        fontSize=6,         # PARÁMETRO: Tamaño de fuente del pie
         alignment=TA_CENTER,
         textColor=grey
     )
     
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 6))  # PARÁMETRO: Espacio antes del pie
     pie = Paragraph("Este documento certifica el pago realizado - Club de Ferromodelismo", pie_style)
     story.append(pie)
     
