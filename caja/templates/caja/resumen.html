@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Resumen de Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header con filtros de fecha -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+      <i class="bi bi-cash-stack text-success me-2"></i>
+      Resumen de Caja
+    </h1>
+    <div class="d-flex gap-2">
+      <a href="{% url 'caja:movimiento_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>
+        Nuevo Movimiento
+      </a>
+      <a href="{% url 'caja:movimiento_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-list me-1"></i>
+        Ver Todos
+      </a>
+    </div>
+  </div>
+
+  <!-- Filtros de período -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label for="fecha_desde" class="form-label">
+            <i class="bi bi-calendar-event me-1"></i>
+            Desde
+          </label>
+          <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" 
+                 value="{{ fecha_desde|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+          <label for="fecha_hasta" class="form-label">
+            <i class="bi bi-calendar-check me-1"></i>
+            Hasta
+          </label>
+          <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" 
+                 value="{{ fecha_hasta|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-funnel me-1"></i>
+            Filtrar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tarjetas de resumen -->
+  <div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-success shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-success mb-1">Ingresos</h6>
+              <h4 class="mb-0 text-success">
+                <i class="bi bi-currency-dollar me-1"></i>
+                {{ total_ingresos|floatformat:0 }}
+              </h4>
+            </div>
+            <i class="bi bi-arrow-up-circle display-6 text-success opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-danger shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-danger mb-1">Egresos</h6>
+              <h4 class="mb-0 text-danger">
+                <i class="bi bi-currency-dollar me-1"></i>
+                {{ total_egresos|floatformat:0 }}
+              </h4>
+            </div>
+            <i class="bi bi-arrow-down-circle display-6 text-danger opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-{% if balance >= 0 %}success{% else %}danger{% endif %} shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-{% if balance >= 0 %}success{% else %}danger{% endif %} mb-1">Balance</h6>
+              <h4 class="mb-0 text-{% if balance >= 0 %}success{% else %}danger{% endif %}">
+                <i class="bi bi-currency-dollar me-1"></i>
+                {{ balance|floatformat:0 }}
+              </h4>
+            </div>
+            <i class="bi bi-{% if balance >= 0 %}plus{% else %}dash{% endif %}-circle display-6 text-{% if balance >= 0 %}success{% else %}danger{% endif %} opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-info shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-info mb-1">Movimientos</h6>
+              <h4 class="mb-0 text-info">{{ cantidad_movimientos }}</h4>
+            </div>
+            <i class="bi bi-list-ul display-6 text-info opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Resumen por categorías -->
+    <div class="col-lg-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">
+            <i class="bi bi-pie-chart text-primary me-2"></i>
+            Resumen por Categorías
+          </h5>
+        </div>
+        <div class="card-body">
+          {% if resumen_categorias %}
+            {% for item in resumen_categorias %}
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <span class="fw-semibold">{{ item.categoria.nombre }}</span>
+                  <br>
+                  <small class="text-muted">{{ item.cantidad }} movimiento{{ item.cantidad|pluralize }}</small>
+                </div>
+                <span class="badge bg-{% if item.categoria.tipo == 'ingreso' %}success{% else %}danger{% endif %} fs-6">
+                  <i class="bi bi-currency-dollar me-1"></i>
+                  {{ item.total|floatformat:0 }}
+                </span>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-3">
+              <i class="bi bi-inbox display-4 text-muted"></i>
+              <p class="text-muted mt-2">No hay movimientos en el período seleccionado</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Últimos movimientos -->
+    <div class="col-lg-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="bi bi-clock-history text-primary me-2"></i>
+            Últimos Movimientos
+          </h5>
+          <a href="{% url 'caja:movimiento_list' %}" class="btn btn-sm btn-outline-primary">
+            Ver todos
+          </a>
+        </div>
+        <div class="card-body p-0">
+          {% if ultimos_movimientos %}
+            <div class="list-group list-group-flush">
+              {% for movimiento in ultimos_movimientos %}
+                <div class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="me-3">
+                      <div class="fw-semibold">
+                        {% if movimiento.tipo == 'ingreso' %}
+                          <i class="bi bi-arrow-up-circle text-success me-1"></i>
+                        {% else %}
+                          <i class="bi bi-arrow-down-circle text-danger me-1"></i>
+                        {% endif %}
+                        {{ movimiento.categoria.nombre }}
+                      </div>
+                      <small class="text-muted">
+                        {{ movimiento.descripcion|truncatechars:50 }}
+                      </small>
+                      <br>
+                      <small class="text-muted">{{ movimiento.fecha|date:"d/m/Y" }}</small>
+                    </div>
+                    <span class="badge bg-{% if movimiento.tipo == 'ingreso' %}success{% else %}danger{% endif %}">
+                      <i class="bi bi-currency-dollar me-1"></i>
+                      {{ movimiento.monto|floatformat:0 }}
+                    </span>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-center py-4">
+              <i class="bi bi-inbox display-4 text-muted"></i>
+              <p class="text-muted mt-2">No hay movimientos recientes</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

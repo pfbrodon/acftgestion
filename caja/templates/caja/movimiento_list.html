@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Movimientos de Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+      <i class="bi bi-list-ul text-primary me-2"></i>
+      Movimientos de Caja
+    </h1>
+    <div class="d-flex gap-2">
+      <a href="{% url 'caja:movimiento_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>
+        Nuevo Movimiento
+      </a>
+      <a href="{% url 'caja:resumen' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-pie-chart me-1"></i>
+        Resumen
+      </a>
+    </div>
+  </div>
+
+  <!-- Tarjetas de resumen -->
+  <div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-success shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-success mb-1">Total Ingresos</h6>
+          <h4 class="mb-0 text-success">
+            <i class="bi bi-currency-dollar me-1"></i>
+            {{ total_ingresos|floatformat:0 }}
+          </h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-danger shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-danger mb-1">Total Egresos</h6>
+          <h4 class="mb-0 text-danger">
+            <i class="bi bi-currency-dollar me-1"></i>
+            {{ total_egresos|floatformat:0 }}
+          </h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-{% if balance >= 0 %}success{% else %}danger{% endif %} shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-{% if balance >= 0 %}success{% else %}danger{% endif %} mb-1">Balance</h6>
+          <h4 class="mb-0 text-{% if balance >= 0 %}success{% else %}danger{% endif %}">
+            <i class="bi bi-currency-dollar me-1"></i>
+            {{ balance|floatformat:0 }}
+          </h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card border-info shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-info mb-1">Movimientos</h6>
+          <h4 class="mb-0 text-info">{{ movimientos|length }}</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-2">
+          <label for="tipo" class="form-label">
+            <i class="bi bi-arrow-up-down me-1"></i>
+            Tipo
+          </label>
+          <select class="form-select" name="tipo" id="tipo">
+            <option value="">Todos</option>
+            {% for value, label in tipos %}
+              <option value="{{ value }}" {% if request.GET.tipo == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="categoria" class="form-label">
+            <i class="bi bi-tags me-1"></i>
+            Categoría
+          </label>
+          <select class="form-select" name="categoria" id="categoria">
+            <option value="">Todas</option>
+            {% for categoria in categorias %}
+              <option value="{{ categoria.id }}" {% if request.GET.categoria == categoria.id|stringformat:"s" %}selected{% endif %}>
+                {{ categoria.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="fecha_desde" class="form-label">
+            <i class="bi bi-calendar-event me-1"></i>
+            Desde
+          </label>
+          <input type="date" class="form-control" name="fecha_desde" id="fecha_desde" 
+                 value="{{ request.GET.fecha_desde }}">
+        </div>
+        <div class="col-md-2">
+          <label for="fecha_hasta" class="form-label">
+            <i class="bi bi-calendar-check me-1"></i>
+            Hasta
+          </label>
+          <input type="date" class="form-control" name="fecha_hasta" id="fecha_hasta" 
+                 value="{{ request.GET.fecha_hasta }}">
+        </div>
+        <div class="col-md-3">
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">
+              <i class="bi bi-funnel me-1"></i>
+              Filtrar
+            </button>
+            <a href="{% url 'caja:movimiento_list' %}" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i>
+              Limpiar
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabla de movimientos -->
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      {% if movimientos %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">
+                  <i class="bi bi-calendar-event me-1"></i>
+                  Fecha
+                </th>
+                <th scope="col">
+                  <i class="bi bi-arrow-up-down me-1"></i>
+                  Tipo
+                </th>
+                <th scope="col">
+                  <i class="bi bi-tags me-1"></i>
+                  Categoría
+                </th>
+                <th scope="col">
+                  <i class="bi bi-currency-dollar me-1"></i>
+                  Monto
+                </th>
+                <th scope="col">
+                  <i class="bi bi-text-paragraph me-1"></i>
+                  Descripción
+                </th>
+                <th scope="col">
+                  <i class="bi bi-person me-1"></i>
+                  Relacionado
+                </th>
+                <th scope="col" class="text-center">
+                  <i class="bi bi-gear me-1"></i>
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for movimiento in movimientos %}
+                <tr>
+                  <td>
+                    <span class="fw-semibold">{{ movimiento.fecha|date:"d/m/Y" }}</span>
+                    <br>
+                    <small class="text-muted">{{ movimiento.fecha_creacion|date:"d/m H:i" }}</small>
+                  </td>
+                  <td>
+                    {% if movimiento.tipo == 'ingreso' %}
+                      <span class="badge bg-success">
+                        <i class="bi bi-arrow-up-circle me-1"></i>
+                        Ingreso
+                      </span>
+                    {% else %}
+                      <span class="badge bg-danger">
+                        <i class="bi bi-arrow-down-circle me-1"></i>
+                        Egreso
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="fw-semibold">{{ movimiento.categoria.nombre }}</span>
+                    {% if movimiento.categoria.descripcion %}
+                      <br>
+                      <small class="text-muted">{{ movimiento.categoria.descripcion|truncatechars:30 }}</small>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="badge bg-{% if movimiento.tipo == 'ingreso' %}success{% else %}danger{% endif %} fs-6">
+                      <i class="bi bi-currency-dollar me-1"></i>
+                      {{ movimiento.monto|floatformat:0 }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="fw-semibold">{{ movimiento.descripcion|truncatechars:40 }}</span>
+                  </td>
+                  <td>
+                    {% if movimiento.pago %}
+                      <a href="{% url 'socios:detalle_socio' movimiento.pago.socio.pk %}" 
+                         class="text-decoration-none" title="Ver socio">
+                        <i class="bi bi-person-circle me-1"></i>
+                        {{ movimiento.pago.socio.nombre }} {{ movimiento.pago.socio.apellido }}
+                      </a>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if not movimiento.pago %}
+                      <!-- Solo permitir editar movimientos manuales -->
+                      <div class="btn-group btn-group-sm">
+                        <a href="{% url 'caja:movimiento_update' movimiento.pk %}" 
+                           class="btn btn-outline-primary" title="Editar">
+                          <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'caja:movimiento_delete' movimiento.pk %}" 
+                           class="btn btn-outline-danger" title="Eliminar"
+                           onclick="return confirm('¿Está seguro de que desea eliminar este movimiento?')">
+                          <i class="bi bi-trash"></i>
+                        </a>
+                      </div>
+                    {% else %}
+                      <span class="badge bg-secondary" title="Movimiento automático">
+                        <i class="bi bi-gear me-1"></i>
+                        Auto
+                      </span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if is_paginated %}
+          <div class="card-footer">
+            <nav aria-label="Navegación de páginas">
+              <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page=1{% if request.GET.tipo %}&tipo={{ request.GET.tipo }}{% endif %}{% if request.GET.categoria %}&categoria={{ request.GET.categoria }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">
+                      <i class="bi bi-chevron-double-left"></i>
+                    </a>
+                  </li>
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.tipo %}&tipo={{ request.GET.tipo }}{% endif %}{% if request.GET.categoria %}&categoria={{ request.GET.categoria }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">
+                      <i class="bi bi-chevron-left"></i>
+                    </a>
+                  </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                  <span class="page-link">
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                  </span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.tipo %}&tipo={{ request.GET.tipo }}{% endif %}{% if request.GET.categoria %}&categoria={{ request.GET.categoria }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">
+                      <i class="bi bi-chevron-right"></i>
+                    </a>
+                  </li>
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.tipo %}&tipo={{ request.GET.tipo }}{% endif %}{% if request.GET.categoria %}&categoria={{ request.GET.categoria }}{% endif %}{% if request.GET.fecha_desde %}&fecha_desde={{ request.GET.fecha_desde }}{% endif %}{% if request.GET.fecha_hasta %}&fecha_hasta={{ request.GET.fecha_hasta }}{% endif %}">
+                      <i class="bi bi-chevron-double-right"></i>
+                    </a>
+                  </li>
+                {% endif %}
+              </ul>
+            </nav>
+            
+            <div class="text-center mt-2">
+              <small class="text-muted">
+                Mostrando {{ page_obj.start_index }}-{{ page_obj.end_index }} de {{ page_obj.paginator.count }} movimientos
+              </small>
+            </div>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="text-center py-5">
+          <i class="bi bi-inbox display-1 text-muted"></i>
+          <h5 class="text-muted mt-3">No hay movimientos registrados</h5>
+          <p class="text-muted">Los movimientos de caja aparecerán aquí una vez que se registren.</p>
+          <a href="{% url 'caja:movimiento_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>
+            Registrar primer movimiento
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
