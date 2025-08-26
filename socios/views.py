@@ -490,17 +490,17 @@ def generar_recibo_pdf(request, pago_id):
             (hasattr(request.user, 'socio') and request.user.socio == pago.socio)):
         return HttpResponseForbidden("No tiene permisos para ver este recibo")
     
-    # ===== CONFIGURACIÓN DEL TAMAÑO DE PÁGINA =====
-    # Crear el PDF con la mitad del tamaño A4 y márgenes mínimos
+    # ===== CONFIGURACIÓN DEL TAMAÑO DE PÁGINA (A4 VERTICAL) =====
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
     buffer = BytesIO()
-    # A4 es 210x297mm, la mitad sería 210x148.5mm (aproximadamente 595x420 puntos)
-    page_width = 595   # PARÁMETRO: Ancho de la página en puntos (595 = A4 completo)
-    page_height = 420  # PARÁMETRO: Alto de la página en puntos (420 = mitad de A4)
-    doc = SimpleDocTemplate(buffer, pagesize=(page_width, page_height), 
-                          rightMargin=1*cm,  # PARÁMETRO: Margen derecho
-                          leftMargin=1*cm,   # PARÁMETRO: Margen izquierdo
-                          topMargin=1*cm,    # PARÁMETRO: Margen superior
-                          bottomMargin=1*cm) # PARÁMETRO: Margen inferior
+    # A4 vertical: 595 x 842 puntos
+    page_width, page_height = A4
+    doc = SimpleDocTemplate(buffer, pagesize=A4, 
+                          rightMargin=2*cm,  # Márgenes más amplios para A4
+                          leftMargin=2*cm,
+                          topMargin=2*cm,
+                          bottomMargin=2*cm)
     
     # ===== CONFIGURACIÓN DE ESTILOS DE TEXTO =====
     # Estilos ultra compactos para una sola página
@@ -640,13 +640,46 @@ def generar_recibo_pdf(request, pago_id):
     pie = Paragraph("Este documento certifica el pago realizado - Club de Ferromodelismo", pie_style)
     story.append(pie)
     
-    # Generar el PDF
-    doc.build(story)
+    # ===== GENERAR EL PDF CON MARCA DE AGUA =====
+    # Creamos un buffer temporal para el PDF sin marca de agua
+    temp_buffer = BytesIO()
+    temp_doc = SimpleDocTemplate(temp_buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+    temp_doc.build(story)
+    temp_buffer.seek(0)
+    # Ahora agregamos la marca de agua usando canvas
+    from PyPDF2 import PdfReader, PdfWriter
+    from reportlab.pdfgen.canvas import Canvas
+    from reportlab.lib.colors import Color, red
+    # Leer el PDF generado
+    reader = PdfReader(temp_buffer)
+    writer = PdfWriter()
+    for page_num in range(len(reader.pages)):
+        page = reader.pages[page_num]
+        # Crear una página de marca de agua
+        watermark_buffer = BytesIO()
+        c = Canvas(watermark_buffer, pagesize=A4)
+        c.saveState()
+        c.setFont("Helvetica-Bold", 80)
+        c.setFillColor(Color(1, 0, 0, alpha=0.15))  # Rojo claro, transparente
+        c.translate(page_width/2, page_height/2)
+        c.rotate(45)
+        c.drawCentredString(0, 0, "NO VALIDO")
+        c.restoreState()
+        c.save()
+        watermark_buffer.seek(0)
+        # Mezclar la marca de agua con la página
+        from PyPDF2 import PdfReader as WatermarkReader
+        watermark_pdf = WatermarkReader(watermark_buffer)
+        watermark_page = watermark_pdf.pages[0]
+        page.merge_page(watermark_page)
+        writer.add_page(page)
+    # Guardar el PDF final con marca de agua
+    final_buffer = BytesIO()
+    writer.write(final_buffer)
+    final_buffer.seek(0)
     
     # Configurar la respuesta HTTP
-    buffer.seek(0)
-    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    filename = f"recibo_pago_{numero_recibo}_{pago.socio.apellido}_{pago.socio.nombre}.pdf"
+    response = HttpResponse(final_buffer.getvalue(), content_type='application/pdf')
+    filename = f"recibo_pago_{numero_recibo}_{pago.socio.apellido}_{pago.socio.nombre}_no_valido.pdf"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
     return response
