@@ -497,10 +497,10 @@ def generar_recibo_pdf(request, pago_id):
     # A4 vertical: 595 x 842 puntos
     page_width, page_height = A4
     doc = SimpleDocTemplate(buffer, pagesize=A4, 
-                          rightMargin=2*cm,  # Márgenes más amplios para A4
-                          leftMargin=2*cm,
-                          topMargin=2*cm,
-                          bottomMargin=2*cm)
+                            rightMargin=2*cm,  # Márgenes más amplios para A4
+                            leftMargin=2*cm,
+                            topMargin=2*cm,
+                            bottomMargin=2*cm)
     
     # ===== CONFIGURACIÓN DE ESTILOS DE TEXTO =====
     # Estilos ultra compactos para una sola página
