@@ -91,20 +91,23 @@
                             </div>
                         </div>
 
-                        <!-- Usar saldo disponible -->
-                        {% if saldo_actual > 0 %}
-                        <div class="mb-3">
-                            <div class="form-check">
-                                {{ form.usar_saldo_disponible }}
-                                <label class="form-check-label" for="{{ form.usar_saldo_disponible.id_for_label }}">
-                                    {{ form.usar_saldo_disponible.label }}
-                                </label>
-                                <small class="form-text text-muted d-block">{{ form.usar_saldo_disponible.help_text }}</small>
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- Monto del pago -->
+        <!-- Usar saldo disponible -->
+        {% if saldo_actual > 0 %}
+        <div class="mb-3">
+            <div class="alert alert-success border" style="padding: 12px;">
+                <div class="form-check mb-0">
+                    {{ form.usar_saldo_disponible }}
+                    <label class="form-check-label" for="{{ form.usar_saldo_disponible.id_for_label }}">
+                        <strong>{{ form.usar_saldo_disponible.label }}</strong>
+                        <span class="badge bg-success ms-2">
+                            <i class="bi bi-wallet me-1"></i>${{ saldo_actual }}
+                        </span>
+                    </label>
+                    <div class="form-text mt-1">{{ form.usar_saldo_disponible.help_text }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}                        <!-- Monto del pago -->
                         <div class="mb-3">
                             <label for="{{ form.monto.id_for_label }}" class="form-label">
                                 <i class="bi bi-currency-dollar me-1"></i>Monto a Pagar
@@ -221,7 +224,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Manejar uso de saldo
     if (usarSaldoCheckbox) {
-        usarSaldoCheckbox.addEventListener('change', actualizarCalculos);
+        usarSaldoCheckbox.addEventListener('change', function() {
+            console.log('Checkbox saldo cambiado:', this.checked);
+            console.log('Saldo disponible:', saldoDisponible);
+            console.log('Total cuotas:', totalCuotas);
+            calcularMontoSugerido();
+            actualizarCalculos();
+        });
     }
     
     function actualizarSeleccion() {
@@ -243,13 +252,62 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (cuotasSeleccionadas.length > 0) {
             mostrarResumen();
-            montoInput.value = totalCuotas.toFixed(2);
+            // Calcular monto sugerido considerando saldo disponible
+            calcularMontoSugerido();
         } else {
             ocultarResumen();
             montoInput.value = '';
         }
         
         actualizarCalculos();
+    }
+    
+    function calcularMontoSugerido() {
+        console.log('Ejecutando calcularMontoSugerido');
+        console.log('Cuotas seleccionadas:', cuotasSeleccionadas.length);
+        console.log('Total cuotas:', totalCuotas);
+        
+        if (cuotasSeleccionadas.length === 0) {
+            montoInput.value = '';
+            return;
+        }
+        
+        const usarSaldo = usarSaldoCheckbox && usarSaldoCheckbox.checked;
+        const saldoAUsar = usarSaldo ? Math.min(saldoDisponible, totalCuotas) : 0;
+        
+        console.log('Usar saldo:', usarSaldo);
+        console.log('Saldo a usar:', saldoAUsar);
+        
+        // Calcular monto necesario después de usar saldo
+        const montoNecesario = Math.max(0, totalCuotas - saldoAUsar);
+        
+        console.log('Monto necesario:', montoNecesario);
+        
+        // Establecer el monto sugerido
+        montoInput.value = montoNecesario.toFixed(2);
+        
+        // Remover información previa si existe
+        const infoPrevia = montoInput.parentElement.querySelector('.alert-info');
+        if (infoPrevia) {
+            infoPrevia.remove();
+        }
+        
+        // Mostrar información visual sobre el cálculo si se usa saldo
+        if (usarSaldo && saldoDisponible > 0 && totalCuotas > 0) {
+            const info = document.createElement('div');
+            info.className = 'alert alert-info mt-2';
+            info.innerHTML = `
+                <small>
+                    <i class="bi bi-info-circle me-1"></i>
+                    Total cuotas: $${totalCuotas.toFixed(2)} | 
+                    Saldo usado: $${saldoAUsar.toFixed(2)} | 
+                    Monto a pagar: $${montoNecesario.toFixed(2)}
+                </small>
+            `;
+            
+            // Agregar nueva información
+            montoInput.parentElement.appendChild(info);
+        }
     }
     
     function mostrarResumen() {
