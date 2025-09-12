@@ -162,9 +162,18 @@ class PagoMultipleForm(forms.ModelForm):
             
             if saldo_actual > 0:
                 self.fields['usar_saldo_disponible'].help_text = f"Saldo disponible: ${saldo_actual}"
+                # Agregar método "Saldo a favor" a las opciones cuando hay saldo disponible
+                metodo_choices = list(self.fields['metodo_pago'].widget.choices)
+                if not any(choice[0] == 'saldo_favor' for choice in metodo_choices):
+                    metodo_choices.append(('saldo_favor', 'Saldo a favor'))
+                    self.fields['metodo_pago'].widget.choices = metodo_choices
             else:
                 self.fields['usar_saldo_disponible'].widget = forms.HiddenInput()
                 self.fields['usar_saldo_disponible'].initial = False
+                # Remover método "Saldo a favor" si no hay saldo disponible
+                metodo_choices = [choice for choice in self.fields['metodo_pago'].widget.choices 
+                                if choice[0] != 'saldo_favor']
+                self.fields['metodo_pago'].widget.choices = metodo_choices
         
         # Configurar el campo es_pago_multiple como oculto
         self.fields['es_pago_multiple'].initial = True

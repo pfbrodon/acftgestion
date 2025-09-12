@@ -123,6 +123,7 @@ class Pago(models.Model):
         ('transferencia', 'Transferencia'),
         ('debito', 'Débito'),
         ('credito', 'Crédito'),
+        ('saldo_favor', 'Saldo a favor'),
     )
     
     socio = models.ForeignKey(Socio, on_delete=models.CASCADE, related_name='pagos')

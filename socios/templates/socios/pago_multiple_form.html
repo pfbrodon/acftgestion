@@ -209,6 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalCuotasSpan = document.getElementById('totalCuotas');
     const montoInput = document.getElementById('id_monto_multiple');
     const usarSaldoCheckbox = document.getElementById('id_usar_saldo_disponible');
+    const metodoPagoSelect = document.getElementById('id_metodo_pago');
     const calculoTiempoReal = document.getElementById('calculoTiempoReal');
     const btnGuardarPago = document.getElementById('btnGuardarPago');
     
@@ -226,7 +227,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Manejar cambio en monto
-    montoInput.addEventListener('input', actualizarCalculos);
+    montoInput.addEventListener('input', function() {
+        actualizarCalculos();
+        actualizarMetodoPago();
+    });
     
     // Manejar uso de saldo
     if (usarSaldoCheckbox) {
@@ -291,6 +295,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Establecer el monto sugerido
         montoInput.value = montoNecesario.toFixed(2);
+        
+        // Actualizar método de pago automáticamente
+        actualizarMetodoPago();
         
         // Remover información previa si existe
         const infoPrevia = montoInput.parentElement.querySelector('.alert-info');
@@ -415,6 +422,40 @@ document.addEventListener('DOMContentLoaded', function() {
         formCheckboxes.forEach(cb => {
             cb.checked = valores.includes(cb.value);
         });
+    }
+    
+    // Función para actualizar automáticamente el método de pago
+    function actualizarMetodoPago() {
+        if (!metodoPagoSelect) return;
+        
+        const monto = parseFloat(montoInput.value) || 0;
+        const usarSaldo = usarSaldoCheckbox && usarSaldoCheckbox.checked;
+        
+        // Si monto es 0 y se está usando saldo, seleccionar "Saldo a favor"
+        if (monto === 0 && usarSaldo && saldoDisponible > 0) {
+            const saldoFavorOption = metodoPagoSelect.querySelector('option[value="saldo_favor"]');
+            if (saldoFavorOption) {
+                metodoPagoSelect.value = 'saldo_favor';
+                // Deshabilitar otros métodos cuando es solo saldo
+                Array.from(metodoPagoSelect.options).forEach(option => {
+                    if (option.value !== 'saldo_favor' && option.value !== '') {
+                        option.disabled = true;
+                    } else {
+                        option.disabled = false;
+                    }
+                });
+            }
+        } else {
+            // Habilitar todos los métodos cuando hay monto adicional
+            Array.from(metodoPagoSelect.options).forEach(option => {
+                option.disabled = false;
+            });
+            
+            // Si había "saldo_favor" seleccionado pero ahora hay monto, cambiar a efectivo
+            if (metodoPagoSelect.value === 'saldo_favor' && monto > 0) {
+                metodoPagoSelect.value = 'efectivo';
+            }
+        }
     }
 });
 </script>
