@@ -52,13 +52,18 @@
                         <div class="mb-4">
                             <h5><i class="bi bi-list-check me-2"></i>Seleccionar Cuotas a Pagar</h5>
                             <div class="border rounded p-3 bg-light">
+                                <!-- Campo del formulario Django -->
+                                <div style="display: none;">
+                                    {{ form.cuotas_seleccionadas }}
+                                </div>
+                                
                                 <div class="row" id="cuotasContainer">
-                                    {% for choice in form.cuotas_seleccionadas %}
+                                    {% for cuota in cuotas_disponibles %}
                                         <div class="col-md-6 mb-2">
-                                            <div class="form-check cuota-item" data-monto="{{ choice.choice_value.monto }}">
-                                                {{ choice.tag }}
-                                                <label class="form-check-label" for="{{ choice.id_for_label }}">
-                                                    {{ choice.choice_label }} - <strong>${{ choice.choice_value.monto }}</strong>
+                                            <div class="form-check cuota-item" data-monto="{{ cuota.monto }}" data-cuota-id="{{ cuota.id }}">
+                                                <input type="checkbox" class="form-check-input cuota-checkbox" value="{{ cuota.id }}" id="cuota_{{ cuota.id }}">
+                                                <label class="form-check-label" for="cuota_{{ cuota.id }}">
+                                                    {{ cuota }} - <strong>${{ cuota.monto }}</strong>
                                                 </label>
                                             </div>
                                         </div>
@@ -207,15 +212,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const calculoTiempoReal = document.getElementById('calculoTiempoReal');
     const btnGuardarPago = document.getElementById('btnGuardarPago');
     
-    const saldoDisponible = {{ saldo_actual|default:0 }};
+    const saldoDisponible = parseFloat('{{ saldo_actual|default:0 }}') || 0;
     
     let cuotasSeleccionadas = [];
     let totalCuotas = 0;
     
     // Manejar selección de cuotas
     cuotasContainer.addEventListener('change', function(e) {
-        if (e.target.type === 'checkbox') {
+        if (e.target.classList.contains('cuota-checkbox')) {
             actualizarSeleccion();
+            sincronizarCampoFormulario();
         }
     });
     
@@ -237,10 +243,10 @@ document.addEventListener('DOMContentLoaded', function() {
         cuotasSeleccionadas = [];
         totalCuotas = 0;
         
-        const checkboxes = cuotasContainer.querySelectorAll('input[type="checkbox"]:checked');
+        const checkboxes = cuotasContainer.querySelectorAll('.cuota-checkbox:checked');
         checkboxes.forEach(checkbox => {
             const cuotaItem = checkbox.closest('.cuota-item');
-            const monto = parseFloat(cuotaItem.dataset.monto);
+            const monto = parseFloat(cuotaItem.dataset.monto) || 0;
             const label = checkbox.nextElementSibling.textContent;
             
             cuotasSeleccionadas.push({
@@ -361,7 +367,9 @@ document.addEventListener('DOMContentLoaded', function() {
         calculoTiempoReal.style.display = 'block';
         
         // Habilitar/deshabilitar botón
-        btnGuardarPago.disabled = monto <= 0 || cuotasSeleccionadas.length === 0;
+        let usarSaldoBoton = usarSaldoCheckbox && usarSaldoCheckbox.checked;
+        const montoValido = monto > 0 || (usarSaldoBoton && saldoDisponible > 0);
+        btnGuardarPago.disabled = !montoValido || cuotasSeleccionadas.length === 0;
     }
     
     // Validación del formulario
@@ -373,14 +381,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const monto = parseFloat(montoInput.value) || 0;
-        if (monto <= 0) {
+        const usarSaldo = usarSaldoCheckbox && usarSaldoCheckbox.checked;
+        
+        // Permitir monto 0 si se está usando saldo disponible y hay cuotas seleccionadas
+        if (monto <= 0 && (!usarSaldo || cuotasSeleccionadas.length === 0)) {
             e.preventDefault();
-            alert('El monto debe ser mayor a 0.');
+            alert('El monto debe ser mayor a 0, o debes usar tu saldo disponible.');
             return false;
+        }
+        
+        // Validar que el monto + saldo cubra al menos parte de las cuotas
+        if (usarSaldo && cuotasSeleccionadas.length > 0) {
+            const saldoAUsar = Math.min(saldoDisponible, totalCuotas);
+            const montoTotalDisponible = monto + saldoAUsar;
+            
+            if (montoTotalDisponible <= 0) {
+                e.preventDefault();
+                alert('Debes ingresar un monto o tener saldo disponible para pagar.');
+                return false;
+            }
         }
         
         return true;
     });
+    
+    // Función para sincronizar con el campo del formulario Django
+    function sincronizarCampoFormulario() {
+        const checkboxes = cuotasContainer.querySelectorAll('.cuota-checkbox:checked');
+        const valores = Array.from(checkboxes).map(cb => cb.value);
+        
+        // Buscar los checkboxes del formulario Django y marcarlos/desmarcarlos
+        const formCheckboxes = document.querySelectorAll('input[name="cuotas_seleccionadas"]');
+        formCheckboxes.forEach(cb => {
+            cb.checked = valores.includes(cb.value);
+        });
+    }
 });
 </script>
 {% endblock %}

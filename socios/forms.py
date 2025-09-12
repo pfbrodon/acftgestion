@@ -222,6 +222,14 @@ class PagoMultipleForm(forms.ModelForm):
             if monto_total_disponible < 0:
                 raise ValidationError("El monto no puede ser negativo.")
             
+            # Validar que si el monto es 0, al menos se esté usando saldo disponible
+            if monto <= 0 and not usar_saldo:
+                raise ValidationError("Debes ingresar un monto mayor a 0 o usar tu saldo disponible.")
+            
+            # Validar que el monto total disponible cubra algo
+            if monto_total_disponible <= 0:
+                raise ValidationError("Debes ingresar un monto o tener saldo disponible para pagar.")
+            
             # Información para el usuario
             if monto_total_disponible < monto_total_cuotas:
                 diferencia = monto_total_cuotas - monto_total_disponible

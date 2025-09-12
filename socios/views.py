@@ -9,6 +9,7 @@ from django.contrib.auth import login
 from django.db.models import ProtectedError, Sum
 from django.db import transaction
 from decimal import Decimal
+import json
 from .models import Socio, Categoria, Pago, Concepto, Cuota, SaldoSocio, DetallePago, MovimientoSaldo
 from .forms import SocioForm, CategoriaForm, PagoForm, ConceptoForm, CuotaForm, PagoMultipleForm
 from .auth_forms import RegistroUsuarioForm, LoginForm
@@ -186,6 +187,19 @@ class PagoMultipleCreateView(LoginRequiredMixin, EsAdministradorMixin, CreateVie
             except SaldoSocio.DoesNotExist:
                 SaldoSocio.objects.create(socio=socio, saldo_actual=0)
                 context['saldo_actual'] = Decimal('0.00')
+            
+            # Agregar información de cuotas disponibles para JavaScript
+            form = self.get_form()
+            if hasattr(form, 'get_cuotas_disponibles'):
+                cuotas_disponibles = form.get_cuotas_disponibles()
+                cuotas_data = {}
+                for cuota in cuotas_disponibles:
+                    cuotas_data[str(cuota.id)] = {
+                        'monto': float(cuota.monto),
+                        'descripcion': str(cuota)
+                    }
+                context['cuotas_data_json'] = json.dumps(cuotas_data)
+                context['cuotas_disponibles'] = cuotas_disponibles
         return context
     
     @transaction.atomic

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Cuotas JavaScript</title>
+    <style>
+        .cuota-item {
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        #resumen {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test de Selección de Cuotas</h1>
+    
+    <div id="cuotasContainer">
+        <div class="cuota-item" data-monto="5000.00" data-cuota-id="1">
+            <input type="checkbox" id="cuota_1" name="cuotas_seleccionadas" value="1">
+            <label for="cuota_1">Enero 2025 - Cuota Mensual - <strong>$5000.00</strong></label>
+        </div>
+        
+        <div class="cuota-item" data-monto="5000.00" data-cuota-id="2">
+            <input type="checkbox" id="cuota_2" name="cuotas_seleccionadas" value="2">
+            <label for="cuota_2">Febrero 2025 - Cuota Mensual - <strong>$5000.00</strong></label>
+        </div>
+        
+        <div class="cuota-item" data-monto="5000.00" data-cuota-id="3">
+            <input type="checkbox" id="cuota_3" name="cuotas_seleccionadas" value="3">
+            <label for="cuota_3">Marzo 2025 - Cuota Mensual - <strong>$5000.00</strong></label>
+        </div>
+    </div>
+    
+    <div id="resumen">
+        <h3>Resumen</h3>
+        <p>Total cuotas seleccionadas: $<span id="totalCuotas">0.00</span></p>
+        <div id="resumenContenido"></div>
+    </div>
+    
+    <input type="number" id="id_monto_multiple" placeholder="Monto a pagar" step="0.01">
+    
+    <script>
+        const cuotasContainer = document.getElementById('cuotasContainer');
+        const totalCuotasSpan = document.getElementById('totalCuotas');
+        const resumenContenido = document.getElementById('resumenContenido');
+        
+        let cuotasSeleccionadas = [];
+        let totalCuotas = 0;
+        
+        // Manejar selección de cuotas
+        cuotasContainer.addEventListener('change', function(e) {
+            if (e.target.type === 'checkbox') {
+                actualizarSeleccion();
+            }
+        });
+        
+        function actualizarSeleccion() {
+            cuotasSeleccionadas = [];
+            totalCuotas = 0;
+            
+            const checkboxes = cuotasContainer.querySelectorAll('input[type="checkbox"]:checked');
+            console.log('Checkboxes seleccionados:', checkboxes.length);
+            
+            checkboxes.forEach(checkbox => {
+                const cuotaItem = checkbox.closest('.cuota-item');
+                const monto = parseFloat(cuotaItem.dataset.monto) || 0;
+                const label = checkbox.nextElementSibling.textContent;
+                
+                console.log('Cuota:', label, 'Monto:', monto);
+                
+                cuotasSeleccionadas.push({
+                    label: label,
+                    monto: monto
+                });
+                totalCuotas += monto;
+            });
+            
+            console.log('Total cuotas:', totalCuotas);
+            totalCuotasSpan.textContent = totalCuotas.toFixed(2);
+            
+            // Mostrar resumen
+            let html = '';
+            cuotasSeleccionadas.forEach(cuota => {
+                html += `<div>${cuota.label} - $${cuota.monto.toFixed(2)}</div>`;
+            });
+            resumenContenido.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
