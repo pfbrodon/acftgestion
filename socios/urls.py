@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     SocioListView, SocioCreateView, SocioUpdateView, SocioDeleteView, SocioDetailView,
     CategoriaListView, CategoriaCreateView, CategoriaUpdateView, CategoriaDeleteView,
-    PagoCreateView, PagoUpdateView, PagoDeleteView, PagoListView,
+    PagoCreateView, PagoMultipleCreateView, PagoUpdateView, PagoDeleteView, PagoListView,
     ConceptoListView, ConceptoCreateView, ConceptoUpdateView, ConceptoDeleteView,
     CuotaListView, CuotaCreateView, CuotaUpdateView, CuotaDeleteView,
     get_cuota_monto, get_concepto_monto, generar_recibo_pdf,
@@ -30,6 +30,7 @@ urlpatterns = [
     path('pagos/', PagoListView.as_view(), name='listar_pagos'),
     path('pagos/nuevo/<int:socio_id>/', PagoCreateView.as_view(), name='crear_pago'),
     path('pagos/nuevo/', PagoCreateView.as_view(), name='crear_pago_general'),
+    path('pagos/multiple/<int:socio_id>/', PagoMultipleCreateView.as_view(), name='crear_pago_multiple'),
     path('pagos/editar/<int:pk>/', PagoUpdateView.as_view(), name='editar_pago'),
     path('pagos/eliminar/<int:pk>/', PagoDeleteView.as_view(), name='eliminar_pago'),
     path('pagos/<int:pago_id>/recibo-pdf/', generar_recibo_pdf, name='recibo_pdf'),

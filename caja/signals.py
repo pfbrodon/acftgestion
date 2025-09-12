@@ -20,23 +20,33 @@ def crear_movimiento_caja_pago(sender, instance, created, **kwargs):
         )
         
         # Crear descripción detallada
-        if instance.cuota:
+        if instance.es_pago_multiple:
+            # Para pagos múltiples, usar información de los detalles
+            descripcion = f"Pago múltiple - {instance.socio.nombre} {instance.socio.apellido}"
+        elif instance.cuota:
             descripcion = f"Pago de cuota {instance.cuota} - {instance.socio.nombre} {instance.socio.apellido}"
-        else:
+        elif instance.concepto:
             # Para pagos antiguos (sistema de conceptos)
             descripcion = f"Pago de {instance.concepto.nombre} - {instance.socio.nombre} {instance.socio.apellido}"
-            if instance.mes_correspondiente and instance.año_correspondiente:
-                descripcion += f" ({instance.mes_correspondiente}/{instance.año_correspondiente})"
+            if hasattr(instance, 'mes_correspondiente') and instance.mes_correspondiente:
+                descripcion += f" ({instance.mes_correspondiente})"
+        else:
+            # Fallback para casos no esperados
+            descripcion = f"Pago - {instance.socio.nombre} {instance.socio.apellido}"
         
-        # Crear el movimiento de caja
-        MovimientoCaja.objects.create(
-            fecha=instance.fecha_pago,
-            tipo=TipoMovimiento.INGRESO,
-            categoria=categoria_cuotas,
-            monto=instance.monto,
-            descripcion=descripcion,
-            pago=instance
-        )
+        # Calcular monto efectivo (sin incluir saldo usado)
+        monto_efectivo = instance.monto - (instance.monto_saldo_usado or 0)
+        
+        # Crear el movimiento de caja solo si hay monto efectivo
+        if monto_efectivo > 0:
+            MovimientoCaja.objects.create(
+                fecha=instance.fecha_pago,
+                tipo=TipoMovimiento.INGRESO,
+                categoria=categoria_cuotas,
+                monto=monto_efectivo,
+                descripcion=descripcion,
+                pago=instance
+            )
 
 @receiver(post_delete, sender=Pago)
 def eliminar_movimiento_caja_pago(sender, instance, **kwargs):

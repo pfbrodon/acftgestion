@@ -37,10 +37,16 @@
 
 <!-- Botones de acción principales -->
 <div class="d-flex gap-2 mb-4">
-  <a href="{% url 'socios:crear_pago' object.pk %}" class="btn btn-success">
-    <i class="bi bi-cash me-2"></i>
-    Registrar Pago
-  </a>
+  <div class="btn-group" role="group">
+    <a href="{% url 'socios:crear_pago' object.pk %}" class="btn btn-success">
+      <i class="bi bi-cash me-2"></i>
+      Pago Simple
+    </a>
+    <a href="{% url 'socios:crear_pago_multiple' object.pk %}" class="btn btn-success">
+      <i class="bi bi-credit-card-2-front me-2"></i>
+      Pago Múltiple
+    </a>
+  </div>
   <a href="{% url 'socios:editar' object.pk %}" class="btn btn-primary">
     <i class="bi bi-pencil me-2"></i>
     Editar Socio
@@ -53,6 +59,50 @@
 <!-- Información del socio -->
 <div class="row">
   <div class="col-lg-4">
+    <!-- Saldo del socio -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header {% if object.saldo.saldo_actual > 0 %}bg-success text-white{% elif object.saldo.saldo_actual < 0 %}bg-warning text-dark{% else %}bg-secondary text-white{% endif %}">
+        <h5 class="mb-0">
+          <i class="bi bi-wallet2 me-2"></i>
+          Saldo del Socio
+        </h5>
+      </div>
+      <div class="card-body text-center">
+        {% if object.saldo %}
+          <h3 class="{% if object.saldo.saldo_actual > 0 %}text-success{% elif object.saldo.saldo_actual < 0 %}text-warning{% else %}text-muted{% endif %}">
+            {% if object.saldo.saldo_actual > 0 %}
+              <i class="bi bi-plus-circle me-1"></i>
+            {% elif object.saldo.saldo_actual < 0 %}
+              <i class="bi bi-dash-circle me-1"></i>
+            {% else %}
+              <i class="bi bi-circle me-1"></i>
+            {% endif %}
+            ${{ object.saldo.saldo_actual|floatformat:2 }}
+          </h3>
+          <p class="mb-0">
+            {% if object.saldo.saldo_actual > 0 %}
+              <span class="badge bg-success">Saldo a favor</span>
+            {% elif object.saldo.saldo_actual < 0 %}
+              <span class="badge bg-warning">Deuda pendiente</span>
+            {% else %}
+              <span class="badge bg-secondary">Sin saldo</span>
+            {% endif %}
+          </p>
+          <small class="text-muted">
+            Actualizado: {{ object.saldo.fecha_actualizacion|date:"d/m/Y H:i" }}
+          </small>
+        {% else %}
+          <h3 class="text-muted">
+            <i class="bi bi-circle me-1"></i>
+            $0.00
+          </h3>
+          <p class="mb-0">
+            <span class="badge bg-secondary">Sin movimientos</span>
+          </p>
+        {% endif %}
+      </div>
+    </div>
+    
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-light">
         <h5 class="mb-0">
@@ -175,10 +225,51 @@
       </div>
       <div class="card-body">
         {% if pagos %}
+          <!-- Resumen de pagos -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                  <h6 class="card-title text-muted mb-1">Total Pagos</h6>
+                  <h4 class="text-primary mb-0">{{ estadisticas_pagos.total_pagos }}</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                  <h6 class="card-title text-muted mb-1">Pagos Múltiples</h6>
+                  <h4 class="text-info mb-0">{{ estadisticas_pagos.pagos_multiples }}</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                  <h6 class="card-title text-muted mb-1">Total Abonado</h6>
+                  <h4 class="text-success mb-0">${{ estadisticas_pagos.total_abonado|floatformat:0 }}</h4>
+                </div>
+              </div>
+            </div></div>
+            <div class="col-md-3">
+              <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                  <h6 class="card-title text-muted mb-1">Estado</h6>
+                  <span class="badge {% if estado_pagos == 'Al día' %}bg-success{% elif estado_pagos == 'Con atraso' %}bg-warning{% else %}bg-danger{% endif %} fs-6">
+                    {{ estado_pagos }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="table-responsive">
             <table class="table table-hover align-middle">
               <thead class="table-light">
                 <tr>
+                  <th scope="col">
+                    <i class="bi bi-layers me-1"></i>
+                    Tipo
+                  </th>
                   <th scope="col">
                     <i class="bi bi-tag me-1"></i>
                     Cuota/Concepto
@@ -205,13 +296,49 @@
                 {% for pago in pagos %}
                   <tr>
                     <td>
+                      {% if pago.es_pago_multiple %}
+                        <span class="badge bg-info">
+                          <i class="bi bi-credit-card-2-front me-1"></i>
+                          Múltiple
+                        </span>
+                      {% else %}
+                        <span class="badge bg-primary">
+                          <i class="bi bi-cash me-1"></i>
+                          Simple
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td>
                       <div class="fw-semibold">
-                        {% if pago.cuota %}
+                        {% if pago.es_pago_multiple %}
+                          <div class="d-flex align-items-center mb-1">
+                            <span class="badge bg-info me-2">
+                              <i class="bi bi-credit-card-2-front me-1"></i>
+                              Pago Múltiple
+                            </span>
+                            <small class="text-muted">({{ pago.detalles.count }} cuotas)</small>
+                          </div>
+                          <div class="mt-1">
+                            {% for detalle in pago.detalles.all %}
+                              <div class="d-flex justify-content-between align-items-center mb-1 p-1 bg-light rounded">
+                                <small class="fw-medium">{{ detalle.cuota }}</small>
+                                <span class="badge bg-success badge-sm">
+                                  ${{ detalle.monto_aplicado|floatformat:0 }}
+                                </span>
+                                {% if detalle.pagado_completamente %}
+                                  <i class="bi bi-check-circle text-success" title="Pagado completamente"></i>
+                                {% else %}
+                                  <i class="bi bi-exclamation-circle text-warning" title="Pago parcial"></i>
+                                {% endif %}
+                              </div>
+                            {% endfor %}
+                          </div>
+                        {% elif pago.cuota %}
                           <span class="badge bg-primary">{{ pago.cuota }}</span>
                         {% else %}
                           <span class="badge bg-secondary">{{ pago.concepto.nombre|default:"-" }}</span>
                           {% if pago.mes_correspondiente %}
-                            <small class="text-muted d-block">{{ pago.mes_correspondiente }}/{{ pago.año_correspondiente }}</small>
+                            <small class="text-muted d-block">{{ pago.mes_correspondiente }}</small>
                           {% endif %}
                         {% endif %}
                       </div>
@@ -220,10 +347,29 @@
                       <span class="fw-semibold">{{ pago.fecha_pago|date:"d/m/Y" }}</span>
                     </td>
                     <td>
-                      <span class="badge bg-success">
-                        <i class="bi bi-currency-dollar me-1"></i>
-                        {{ pago.monto|floatformat:0 }}
-                      </span>
+                      <div>
+                        <span class="badge bg-success">
+                          <i class="bi bi-currency-dollar me-1"></i>
+                          {{ pago.monto|floatformat:0 }}
+                        </span>
+                        
+                        {% if pago.es_pago_multiple %}
+                          <div class="mt-1">
+                            {% if pago.monto_saldo_usado > 0 %}
+                              <small class="text-info d-block">
+                                <i class="bi bi-wallet2 me-1"></i>
+                                Saldo usado: ${{ pago.monto_saldo_usado|floatformat:0 }}
+                              </small>
+                            {% endif %}
+                            {% if pago.monto_sobrante > 0 %}
+                              <small class="text-warning d-block">
+                                <i class="bi bi-plus-circle me-1"></i>
+                                Sobrante: ${{ pago.monto_sobrante|floatformat:0 }}
+                              </small>
+                            {% endif %}
+                          </div>
+                        {% endif %}
+                      </div>
                     </td>
                     <td>
                       <span class="text-muted">{{ pago.get_metodo_pago_display }}</span>
@@ -267,6 +413,98 @@
         {% endif %}
       </div>
     </div>
+    
+    <!-- Historial de Movimientos de Saldo -->
+    {% if saldo_socio and saldo_socio.movimientos.all %}
+    <div class="card shadow-sm mt-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0">
+          <i class="bi bi-graph-up-arrow text-info me-2"></i>
+          Historial de Movimientos de Saldo
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">
+                  <i class="bi bi-calendar me-1"></i>
+                  Fecha
+                </th>
+                <th scope="col">
+                  <i class="bi bi-currency-dollar me-1"></i>
+                  Movimiento
+                </th>
+                <th scope="col">
+                  <i class="bi bi-wallet me-1"></i>
+                  Saldo Anterior
+                </th>
+                <th scope="col">
+                  <i class="bi bi-wallet2 me-1"></i>
+                  Saldo Nuevo
+                </th>
+                <th scope="col">
+                  <i class="bi bi-chat-left-text me-1"></i>
+                  Descripción
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for movimiento in saldo_socio.movimientos.all|slice:":10" %}
+                <tr>
+                  <td>
+                    <small class="text-muted">{{ movimiento.fecha|date:"d/m/Y H:i" }}</small>
+                  </td>
+                  <td>
+                    {% if movimiento.monto > 0 %}
+                      <span class="text-success fw-semibold">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        +${{ movimiento.monto|floatformat:2 }}
+                      </span>
+                    {% else %}
+                      <span class="text-danger fw-semibold">
+                        <i class="bi bi-dash-circle me-1"></i>
+                        ${{ movimiento.monto|floatformat:2 }}
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <small class="text-muted">${{ movimiento.saldo_anterior|floatformat:2 }}</small>
+                  </td>
+                  <td>
+                    {% if movimiento.saldo_nuevo > 0 %}
+                      <span class="text-success fw-semibold">${{ movimiento.saldo_nuevo|floatformat:2 }}</span>
+                    {% elif movimiento.saldo_nuevo < 0 %}
+                      <span class="text-warning fw-semibold">${{ movimiento.saldo_nuevo|floatformat:2 }}</span>
+                    {% else %}
+                      <span class="text-muted fw-semibold">${{ movimiento.saldo_nuevo|floatformat:2 }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <small>{{ movimiento.descripcion|default:"Sin descripción" }}</small>
+                    {% if movimiento.pago_relacionado %}
+                      <br><small class="text-info">
+                        <i class="bi bi-link-45deg me-1"></i>
+                        Relacionado con pago #{{ movimiento.pago_relacionado.id }}
+                      </small>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if saldo_socio.movimientos.count > 10 %}
+          <div class="text-center mt-3">
+            <small class="text-muted">
+              Mostrando los últimos 10 movimientos de {{ saldo_socio.movimientos.count }} totales
+            </small>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

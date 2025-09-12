@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-credit-card-2-front me-2"></i>
+                        Pago Múltiple - {{ socio.nombre }} {{ socio.apellido }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Información del socio y saldo -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-person-fill me-2"></i>Información del Socio</h6>
+                                <strong>{{ socio.nombre }} {{ socio.apellido }}</strong><br>
+                                <small>DNI: {{ socio.dni }}</small><br>
+                                <small>Categoría: {{ socio.categoria }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="alert {% if saldo_actual > 0 %}alert-success{% elif saldo_actual < 0 %}alert-warning{% else %}alert-secondary{% endif %}">
+                                <h6><i class="bi bi-wallet2 me-2"></i>Saldo Actual</h6>
+                                <strong>
+                                    {% if saldo_actual > 0 %}
+                                        <i class="bi bi-plus-circle text-success"></i> ${{ saldo_actual }}
+                                        <small class="d-block">Saldo a favor</small>
+                                    {% elif saldo_actual < 0 %}
+                                        <i class="bi bi-dash-circle text-warning"></i> ${{ saldo_actual|floatformat:2 }}
+                                        <small class="d-block">Deuda pendiente</small>
+                                    {% else %}
+                                        <i class="bi bi-dash-circle text-muted"></i> $0.00
+                                        <small class="d-block">Sin saldo</small>
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" id="pagoMultipleForm">
+                        {% csrf_token %}
+                        
+                        <!-- Campos ocultos -->
+                        {{ form.socio }}
+                        {{ form.es_pago_multiple }}
+                        
+                        <!-- Selección de cuotas -->
+                        <div class="mb-4">
+                            <h5><i class="bi bi-list-check me-2"></i>Seleccionar Cuotas a Pagar</h5>
+                            <div class="border rounded p-3 bg-light">
+                                <div class="row" id="cuotasContainer">
+                                    {% for choice in form.cuotas_seleccionadas %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="form-check cuota-item" data-monto="{{ choice.choice_value.monto }}">
+                                                {{ choice.tag }}
+                                                <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                                    {{ choice.choice_label }} - <strong>${{ choice.choice_value.monto }}</strong>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    {% empty %}
+                                        <div class="col-12">
+                                            <div class="alert alert-warning">
+                                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                                No hay cuotas disponibles para pagar.
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% if form.cuotas_seleccionadas.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.cuotas_seleccionadas.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Resumen de selección -->
+                        <div class="mb-4" id="resumenSeleccion" style="display: none;">
+                            <div class="alert alert-primary">
+                                <h6><i class="bi bi-calculator me-2"></i>Resumen de Cuotas Seleccionadas</h6>
+                                <div id="resumenContenido"></div>
+                                <hr>
+                                <strong>Total: $<span id="totalCuotas">0.00</span></strong>
+                            </div>
+                        </div>
+
+                        <!-- Usar saldo disponible -->
+                        {% if saldo_actual > 0 %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.usar_saldo_disponible }}
+                                <label class="form-check-label" for="{{ form.usar_saldo_disponible.id_for_label }}">
+                                    {{ form.usar_saldo_disponible.label }}
+                                </label>
+                                <small class="form-text text-muted d-block">{{ form.usar_saldo_disponible.help_text }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Monto del pago -->
+                        <div class="mb-3">
+                            <label for="{{ form.monto.id_for_label }}" class="form-label">
+                                <i class="bi bi-currency-dollar me-1"></i>Monto a Pagar
+                            </label>
+                            {{ form.monto }}
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Ingresa el monto total que deseas pagar. 
+                                Si es menor al total de cuotas, quedará una deuda. 
+                                Si es mayor, el excedente se agregará como saldo a favor.
+                            </div>
+                            {% if form.monto.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.monto.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Información del pago -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.fecha_pago.id_for_label }}" class="form-label">
+                                    <i class="bi bi-calendar me-1"></i>Fecha de Pago
+                                </label>
+                                {{ form.fecha_pago }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.metodo_pago.id_for_label }}" class="form-label">
+                                    <i class="bi bi-credit-card me-1"></i>Método de Pago
+                                </label>
+                                {{ form.metodo_pago }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.comprobante.id_for_label }}" class="form-label">
+                                <i class="bi bi-receipt me-1"></i>Comprobante (Opcional)
+                            </label>
+                            {{ form.comprobante }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.comentarios.id_for_label }}" class="form-label">
+                                <i class="bi bi-chat-left-text me-1"></i>Comentarios (Opcional)
+                            </label>
+                            {{ form.comentarios }}
+                        </div>
+
+                        <!-- Cálculo en tiempo real -->
+                        <div class="alert alert-light border" id="calculoTiempoReal" style="display: none;">
+                            <h6><i class="bi bi-calculator-fill me-2"></i>Cálculo del Pago</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <small class="text-muted">Total cuotas:</small><br>
+                                    <strong>$<span id="displayTotalCuotas">0.00</span></strong>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted">Monto pagando:</small><br>
+                                    <strong>$<span id="displayMontoPagando">0.00</span></strong>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted">Resultado:</small><br>
+                                    <strong id="displayResultado">$0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'socios:detalle_socio' socio.pk %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="btnGuardarPago">
+                                <i class="bi bi-save me-1"></i>Registrar Pago
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('pagoMultipleForm');
+    const cuotasContainer = document.getElementById('cuotasContainer');
+    const resumenSeleccion = document.getElementById('resumenSeleccion');
+    const resumenContenido = document.getElementById('resumenContenido');
+    const totalCuotasSpan = document.getElementById('totalCuotas');
+    const montoInput = document.getElementById('id_monto_multiple');
+    const usarSaldoCheckbox = document.getElementById('id_usar_saldo_disponible');
+    const calculoTiempoReal = document.getElementById('calculoTiempoReal');
+    const btnGuardarPago = document.getElementById('btnGuardarPago');
+    
+    const saldoDisponible = {{ saldo_actual|default:0 }};
+    
+    let cuotasSeleccionadas = [];
+    let totalCuotas = 0;
+    
+    // Manejar selección de cuotas
+    cuotasContainer.addEventListener('change', function(e) {
+        if (e.target.type === 'checkbox') {
+            actualizarSeleccion();
+        }
+    });
+    
+    // Manejar cambio en monto
+    montoInput.addEventListener('input', actualizarCalculos);
+    
+    // Manejar uso de saldo
+    if (usarSaldoCheckbox) {
+        usarSaldoCheckbox.addEventListener('change', actualizarCalculos);
+    }
+    
+    function actualizarSeleccion() {
+        cuotasSeleccionadas = [];
+        totalCuotas = 0;
+        
+        const checkboxes = cuotasContainer.querySelectorAll('input[type="checkbox"]:checked');
+        checkboxes.forEach(checkbox => {
+            const cuotaItem = checkbox.closest('.cuota-item');
+            const monto = parseFloat(cuotaItem.dataset.monto);
+            const label = checkbox.nextElementSibling.textContent;
+            
+            cuotasSeleccionadas.push({
+                label: label,
+                monto: monto
+            });
+            totalCuotas += monto;
+        });
+        
+        if (cuotasSeleccionadas.length > 0) {
+            mostrarResumen();
+            montoInput.value = totalCuotas.toFixed(2);
+        } else {
+            ocultarResumen();
+            montoInput.value = '';
+        }
+        
+        actualizarCalculos();
+    }
+    
+    function mostrarResumen() {
+        let html = '';
+        cuotasSeleccionadas.forEach(cuota => {
+            html += `<div class="d-flex justify-content-between">
+                        <span>${cuota.label}</span>
+                        <strong>$${cuota.monto.toFixed(2)}</strong>
+                     </div>`;
+        });
+        
+        resumenContenido.innerHTML = html;
+        totalCuotasSpan.textContent = totalCuotas.toFixed(2);
+        resumenSeleccion.style.display = 'block';
+    }
+    
+    function ocultarResumen() {
+        resumenSeleccion.style.display = 'none';
+        calculoTiempoReal.style.display = 'none';
+    }
+    
+    function actualizarCalculos() {
+        if (cuotasSeleccionadas.length === 0) {
+            calculoTiempoReal.style.display = 'none';
+            return;
+        }
+        
+        const monto = parseFloat(montoInput.value) || 0;
+        const usarSaldo = usarSaldoCheckbox && usarSaldoCheckbox.checked;
+        const saldoAUsar = usarSaldo ? saldoDisponible : 0;
+        const montoTotalDisponible = monto + saldoAUsar;
+        
+        // Actualizar display
+        document.getElementById('displayTotalCuotas').textContent = totalCuotas.toFixed(2);
+        document.getElementById('displayMontoPagando').textContent = montoTotalDisponible.toFixed(2);
+        
+        const diferencia = montoTotalDisponible - totalCuotas;
+        const resultadoElement = document.getElementById('displayResultado');
+        
+        if (diferencia > 0) {
+            resultadoElement.innerHTML = `<span class="text-success">+$${diferencia.toFixed(2)}</span><br><small class="text-muted">Saldo a favor</small>`;
+            resultadoElement.className = 'text-success';
+        } else if (diferencia < 0) {
+            resultadoElement.innerHTML = `<span class="text-danger">-$${Math.abs(diferencia).toFixed(2)}</span><br><small class="text-muted">Deuda restante</small>`;
+            resultadoElement.className = 'text-danger';
+        } else {
+            resultadoElement.innerHTML = `<span class="text-primary">$0.00</span><br><small class="text-muted">Pago exacto</small>`;
+            resultadoElement.className = 'text-primary';
+        }
+        
+        calculoTiempoReal.style.display = 'block';
+        
+        // Habilitar/deshabilitar botón
+        btnGuardarPago.disabled = monto <= 0 || cuotasSeleccionadas.length === 0;
+    }
+    
+    // Validación del formulario
+    form.addEventListener('submit', function(e) {
+        if (cuotasSeleccionadas.length === 0) {
+            e.preventDefault();
+            alert('Debes seleccionar al menos una cuota para pagar.');
+            return false;
+        }
+        
+        const monto = parseFloat(montoInput.value) || 0;
+        if (monto <= 0) {
+            e.preventDefault();
+            alert('El monto debe ser mayor a 0.');
+            return false;
+        }
+        
+        return true;
+    });
+});
+</script>
+{% endblock %}

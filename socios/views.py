@@ -6,9 +6,11 @@ from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth import login
-from django.db.models import ProtectedError
-from .models import Socio, Categoria, Pago, Concepto, Cuota
-from .forms import SocioForm, CategoriaForm, PagoForm, ConceptoForm, CuotaForm
+from django.db.models import ProtectedError, Sum
+from django.db import transaction
+from decimal import Decimal
+from .models import Socio, Categoria, Pago, Concepto, Cuota, SaldoSocio, DetallePago, MovimientoSaldo
+from .forms import SocioForm, CategoriaForm, PagoForm, ConceptoForm, CuotaForm, PagoMultipleForm
 from .auth_forms import RegistroUsuarioForm, LoginForm
 
 # Imports para PDF
@@ -156,6 +158,130 @@ class PagoCreateView(LoginRequiredMixin, EsAdministradorMixin, CreateView):
         socio_id = self.kwargs.get('socio_id') or self.object.socio.id
         return reverse('socios:detalle_socio', kwargs={'pk': socio_id})
 
+class PagoMultipleCreateView(LoginRequiredMixin, EsAdministradorMixin, CreateView):
+    """Vista para crear pagos múltiples con manejo de saldos"""
+    model = Pago
+    form_class = PagoMultipleForm
+    template_name = 'socios/pago_multiple_form.html'
+    login_url = 'socios:login'
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        socio_id = self.kwargs.get('socio_id')
+        if socio_id:
+            kwargs['socio'] = get_object_or_404(Socio, pk=socio_id)
+        return kwargs
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        socio_id = self.kwargs.get('socio_id')
+        if socio_id:
+            socio = get_object_or_404(Socio, pk=socio_id)
+            context['socio'] = socio
+            
+            # Obtener saldo actual del socio
+            try:
+                saldo_socio = SaldoSocio.objects.get(socio=socio)
+                context['saldo_actual'] = saldo_socio.saldo_actual
+            except SaldoSocio.DoesNotExist:
+                SaldoSocio.objects.create(socio=socio, saldo_actual=0)
+                context['saldo_actual'] = Decimal('0.00')
+        return context
+    
+    @transaction.atomic
+    def form_valid(self, form):
+        # Obtener datos del formulario
+        cuotas_seleccionadas = form.cleaned_data['cuotas_seleccionadas']
+        monto_pagado = form.cleaned_data['monto']
+        usar_saldo = form.cleaned_data.get('usar_saldo_disponible', False)
+        socio = form.cleaned_data['socio']
+        
+        # Crear el pago principal
+        pago = form.save(commit=False)
+        pago.es_pago_multiple = True
+        
+        # Obtener o crear saldo del socio
+        saldo_socio, created = SaldoSocio.objects.get_or_create(
+            socio=socio,
+            defaults={'saldo_actual': Decimal('0.00')}
+        )
+        
+        saldo_disponible = Decimal('0.00')
+        if usar_saldo and saldo_socio.saldo_actual > 0:
+            saldo_disponible = saldo_socio.saldo_actual
+            pago.monto_saldo_usado = saldo_disponible
+            saldo_socio.saldo_actual = Decimal('0.00')
+            saldo_socio.save()
+        
+        # Calcular monto total disponible
+        monto_total_disponible = monto_pagado + saldo_disponible
+        
+        # Calcular monto total de cuotas
+        monto_total_cuotas = sum(cuota.monto for cuota in cuotas_seleccionadas)
+        
+        # Guardar el pago
+        pago.save()
+        
+        # Distribuir el monto entre las cuotas seleccionadas
+        monto_restante = monto_total_disponible
+        
+        for cuota in cuotas_seleccionadas:
+            # Verificar cuánto ya se ha pagado de esta cuota
+            total_pagado_previo = DetallePago.objects.filter(
+                cuota=cuota,
+                pago__socio=socio
+            ).aggregate(total=Sum('monto_aplicado'))['total'] or Decimal('0.00')
+            
+            monto_pendiente_cuota = cuota.monto - total_pagado_previo
+            
+            # Aplicar el monto disponible a esta cuota
+            monto_a_aplicar = min(monto_restante, monto_pendiente_cuota)
+            
+            if monto_a_aplicar > 0:
+                DetallePago.objects.create(
+                    pago=pago,
+                    cuota=cuota,
+                    monto_aplicado=monto_a_aplicar
+                )
+                monto_restante -= monto_a_aplicar
+        
+        # Manejar monto sobrante o faltante
+        if monto_restante > 0:
+            # Hay dinero sobrante, agregarlo al saldo del socio
+            pago.monto_sobrante = monto_restante
+            pago.save()
+            
+            saldo_socio.agregar_saldo(
+                monto_restante,
+                f"Saldo a favor por pago múltiple #{pago.id}"
+            )
+            
+            messages.success(
+                self.request,
+                f"Pago registrado exitosamente. Saldo a favor agregado: ${monto_restante}"
+            )
+        elif monto_restante < 0:
+            # Falta dinero, registrar como deuda
+            deuda = abs(monto_restante)
+            saldo_socio.agregar_saldo(
+                -deuda,
+                f"Deuda pendiente por pago múltiple #{pago.id}"
+            )
+            
+            messages.warning(
+                self.request,
+                f"Pago registrado. Queda una deuda pendiente de: ${deuda}"
+            )
+        else:
+            messages.success(self.request, "Pago múltiple registrado exitosamente.")
+        
+        self.object = pago
+        return redirect(self.get_success_url())
+    
+    def get_success_url(self):
+        socio_id = self.kwargs.get('socio_id') or self.object.socio.id
+        return reverse('socios:detalle_socio', kwargs={'pk': socio_id})
+
 class PagoUpdateView(LoginRequiredMixin, EsAdministradorMixin, UpdateView):
     model = Pago
     form_class = PagoForm
@@ -182,9 +308,35 @@ class SocioDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['pagos'] = self.object.pagos.all().order_by('-fecha_pago')
+        # Incluir detalles de pagos para evitar consultas N+1
+        pagos = self.object.pagos.prefetch_related(
+            'detalles__cuota', 
+            'concepto'
+        ).all().order_by('-fecha_pago')
+        
+        context['pagos'] = pagos
         context['estado_pagos'] = self.object.get_estado_pagos()
         context['es_admin'] = self.request.user.is_superuser or (hasattr(self.request.user, 'socio') and self.request.user.socio.es_administrador)
+        
+        # Calcular estadísticas de pagos
+        total_pagos = pagos.count()
+        pagos_multiples = pagos.filter(es_pago_multiple=True).count()
+        total_abonado = sum(pago.monto for pago in pagos)
+        
+        context['estadisticas_pagos'] = {
+            'total_pagos': total_pagos,
+            'pagos_multiples': pagos_multiples,
+            'pagos_simples': total_pagos - pagos_multiples,
+            'total_abonado': total_abonado
+        }
+        
+        # Obtener o crear saldo del socio
+        try:
+            saldo_socio = SaldoSocio.objects.get(socio=self.object)
+        except SaldoSocio.DoesNotExist:
+            saldo_socio = SaldoSocio.objects.create(socio=self.object, saldo_actual=0)
+        
+        context['saldo_socio'] = saldo_socio
         return context
     
     def dispatch(self, request, *args, **kwargs):
