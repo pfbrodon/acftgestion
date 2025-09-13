@@ -34,19 +34,25 @@ def crear_movimiento_caja_pago(sender, instance, created, **kwargs):
             # Fallback para casos no esperados
             descripcion = f"Pago - {instance.socio.nombre} {instance.socio.apellido}"
         
-        # Calcular monto efectivo (sin incluir saldo usado)
+        # Calcular montos para transparencia contable
         monto_efectivo = instance.monto - (instance.monto_saldo_usado or 0)
+        monto_saldo_usado = instance.monto_saldo_usado or 0
         
-        # Crear el movimiento de caja solo si hay monto efectivo
-        if monto_efectivo > 0:
-            MovimientoCaja.objects.create(
-                fecha=instance.fecha_pago,
-                tipo=TipoMovimiento.INGRESO,
-                categoria=categoria_cuotas,
-                monto=monto_efectivo,
-                descripcion=descripcion,
-                pago=instance
-            )
+        # Mejorar descripción para incluir información de saldo si se usó
+        if monto_saldo_usado > 0:
+            descripcion += f" (Efectivo: ${monto_efectivo}, Saldo usado: ${monto_saldo_usado})"
+        
+        # Crear el movimiento de caja con el monto TOTAL del pago
+        # Esto mantiene la consistencia contable ya que el saldo a favor
+        # representa dinero que ya estaba disponible en la organización
+        MovimientoCaja.objects.create(
+            fecha=instance.fecha_pago,
+            tipo=TipoMovimiento.INGRESO,
+            categoria=categoria_cuotas,
+            monto=instance.monto,  # Monto total, no solo efectivo
+            descripcion=descripcion,
+            pago=instance
+        )
 
 @receiver(post_delete, sender=Pago)
 def eliminar_movimiento_caja_pago(sender, instance, **kwargs):

@@ -48,23 +48,124 @@
                         {{ form.socio }}
                         {{ form.es_pago_multiple }}
                         
-                        <!-- Selección de cuotas -->
+                        <!-- Selección de cuotas mejorada -->
                         <div class="mb-4">
-                            <h5><i class="bi bi-list-check me-2"></i>Seleccionar Cuotas a Pagar</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5><i class="bi bi-list-check me-2"></i>Seleccionar Cuotas a Pagar</h5>
+                                {% if estadisticas_cuotas %}
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-danger">{{ estadisticas_cuotas.sin_pagar }} sin pagar</span>
+                                    {% if estadisticas_cuotas.parciales > 0 %}
+                                    <span class="badge bg-warning">{{ estadisticas_cuotas.parciales }} parciales</span>
+                                    {% endif %}
+                                    <span class="badge bg-primary">Total: ${{ estadisticas_cuotas.monto_total_pendiente|floatformat:2 }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Botones de selección rápida -->
+                            <div class="mb-3">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary" id="seleccionarTodas">
+                                        <i class="bi bi-check-all me-1"></i>Todas
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" id="seleccionarParciales">
+                                        <i class="bi bi-dash-circle me-1"></i>Parciales
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" id="seleccionarVencidas">
+                                        <i class="bi bi-clock me-1"></i>Vencidas
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="limpiarSeleccion">
+                                        <i class="bi bi-x-circle me-1"></i>Limpiar
+                                    </button>
+                                </div>
+                            </div>
+                            
                             <div class="border rounded p-3 bg-light">
-                                <!-- Campo del formulario Django -->
+                                <!-- Campo del formulario Django (oculto) -->
                                 <div style="display: none;">
                                     {{ form.cuotas_seleccionadas }}
                                 </div>
                                 
                                 <div class="row" id="cuotasContainer">
-                                    {% for cuota in cuotas_disponibles %}
-                                        <div class="col-md-6 mb-2">
-                                            <div class="form-check cuota-item" data-monto="{{ cuota.monto }}" data-cuota-id="{{ cuota.id }}">
-                                                <input type="checkbox" class="form-check-input cuota-checkbox" value="{{ cuota.id }}" id="cuota_{{ cuota.id }}">
-                                                <label class="form-check-label" for="cuota_{{ cuota.id }}">
-                                                    {{ cuota }} - <strong>${{ cuota.monto }}</strong>
-                                                </label>
+                                    {% for cuota_info in cuotas_con_estado %}
+                                        <div class="col-lg-6 mb-3">
+                                            <div class="cuota-item border rounded p-3 h-100 bg-white shadow-sm position-relative {% if cuota_info.es_vencida %}border-danger{% elif cuota_info.estado == 'parcial' %}border-warning{% else %}border-light{% endif %}" 
+                                                 data-monto="{{ cuota_info.monto }}" 
+                                                 data-cuota-id="{{ cuota_info.id }}"
+                                                 data-estado="{{ cuota_info.estado }}"
+                                                 data-es-vencida="{{ cuota_info.es_vencida|yesno:'true,false' }}">
+                                                
+                                                <div class="form-check">
+                                                    <input type="checkbox" class="form-check-input cuota-checkbox" value="{{ cuota_info.id }}" id="cuota_{{ cuota_info.id }}">
+                                                    <label class="form-check-label w-100" for="cuota_{{ cuota_info.id }}">
+                                                        <!-- Encabezado de la cuota -->
+                                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                                            <div>
+                                                                <strong>{{ cuota_info.concepto }}</strong>
+                                                                <div class="text-muted small">
+                                                                    {% if cuota_info.mes == 1 %}Enero
+                                                                    {% elif cuota_info.mes == 2 %}Febrero
+                                                                    {% elif cuota_info.mes == 3 %}Marzo
+                                                                    {% elif cuota_info.mes == 4 %}Abril
+                                                                    {% elif cuota_info.mes == 5 %}Mayo
+                                                                    {% elif cuota_info.mes == 6 %}Junio
+                                                                    {% elif cuota_info.mes == 7 %}Julio
+                                                                    {% elif cuota_info.mes == 8 %}Agosto
+                                                                    {% elif cuota_info.mes == 9 %}Septiembre
+                                                                    {% elif cuota_info.mes == 10 %}Octubre
+                                                                    {% elif cuota_info.mes == 11 %}Noviembre
+                                                                    {% elif cuota_info.mes == 12 %}Diciembre
+                                                                    {% endif %} {{ cuota_info.anio }}
+                                                                    {% if cuota_info.es_vencida %}
+                                                                        <i class="bi bi-exclamation-triangle text-danger ms-1" title="Cuota vencida"></i>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                            <span class="badge bg-{{ cuota_info.estado_clase }}">{{ cuota_info.estado_texto }}</span>
+                                                        </div>
+                                                        
+                                                        <!-- Información de montos -->
+                                                        <div class="row text-sm">
+                                                            <div class="col-6">
+                                                                <div class="text-muted small">Total:</div>
+                                                                <div><strong>${{ cuota_info.monto|floatformat:2 }}</strong></div>
+                                                            </div>
+                                                            {% if cuota_info.total_pagado > 0 %}
+                                                            <div class="col-6">
+                                                                <div class="text-muted small">Pagado:</div>
+                                                                <div class="text-success">${{ cuota_info.total_pagado|floatformat:2 }}</div>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                        
+                                                        {% if cuota_info.monto_pendiente != cuota_info.monto %}
+                                                        <div class="mt-2">
+                                                            <div class="text-muted small">Pendiente:</div>
+                                                            <div class="text-primary"><strong>${{ cuota_info.monto_pendiente|floatformat:2 }}</strong></div>
+                                                        </div>
+                                                        {% endif %}
+                                                        
+                                                        <!-- Barra de progreso para cuotas parciales -->
+                                                        {% if cuota_info.porcentaje_pagado > 0 and cuota_info.porcentaje_pagado < 100 %}
+                                                        <div class="mt-2">
+                                                            <div class="progress" style="height: 4px;">
+                                                                <div class="progress-bar bg-warning" style="width: {{ cuota_info.porcentaje_pagado }}%"></div>
+                                                            </div>
+                                                            <div class="text-muted small mt-1">{{ cuota_info.porcentaje_pagado|floatformat:0 }}% pagado</div>
+                                                        </div>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                                
+                                                <!-- Indicador de prioridad -->
+                                                {% if cuota_info.prioridad == 1 %}
+                                                <div class="position-absolute top-0 start-0 translate-middle">
+                                                    <span class="badge bg-warning rounded-pill">
+                                                        <i class="bi bi-star-fill"></i>
+                                                    </span>
+                                                </div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     {% empty %}
@@ -213,6 +314,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const calculoTiempoReal = document.getElementById('calculoTiempoReal');
     const btnGuardarPago = document.getElementById('btnGuardarPago');
     
+    // Botones de selección rápida
+    const btnSeleccionarTodas = document.getElementById('seleccionarTodas');
+    const btnSeleccionarParciales = document.getElementById('seleccionarParciales');
+    const btnSeleccionarVencidas = document.getElementById('seleccionarVencidas');
+    const btnLimpiarSeleccion = document.getElementById('limpiarSeleccion');
+    
     const saldoDisponible = parseFloat('{{ saldo_actual|default:0 }}') || 0;
     
     let cuotasSeleccionadas = [];
@@ -240,6 +347,31 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Total cuotas:', totalCuotas);
             calcularMontoSugerido();
             actualizarCalculos();
+        });
+    }
+    
+    // Event listeners para botones de selección rápida
+    if (btnSeleccionarTodas) {
+        btnSeleccionarTodas.addEventListener('click', function() {
+            seleccionarCuotasPor('todas');
+        });
+    }
+    
+    if (btnSeleccionarParciales) {
+        btnSeleccionarParciales.addEventListener('click', function() {
+            seleccionarCuotasPor('parciales');
+        });
+    }
+    
+    if (btnSeleccionarVencidas) {
+        btnSeleccionarVencidas.addEventListener('click', function() {
+            seleccionarCuotasPor('vencidas');
+        });
+    }
+    
+    if (btnLimpiarSeleccion) {
+        btnLimpiarSeleccion.addEventListener('click', function() {
+            limpiarTodasLasSelecciones();
         });
     }
     
@@ -457,6 +589,146 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+    
+    // ========== FUNCIONES DE SELECCIÓN RÁPIDA ==========
+    
+    /**
+     * Selecciona cuotas según el criterio especificado
+     */
+    function seleccionarCuotasPor(criterio) {
+        const checkboxes = cuotasContainer.querySelectorAll('.cuota-checkbox');
+        let seleccionadas = 0;
+        
+        checkboxes.forEach(checkbox => {
+            const cuotaItem = checkbox.closest('.cuota-item');
+            const estado = cuotaItem.dataset.estado;
+            const esVencida = cuotaItem.dataset.esVencida === 'true';
+            
+            let debeSeleccionar = false;
+            
+            switch(criterio) {
+                case 'todas':
+                    debeSeleccionar = true;
+                    break;
+                case 'parciales':
+                    debeSeleccionar = (estado === 'parcial');
+                    break;
+                case 'vencidas':
+                    debeSeleccionar = esVencida;
+                    break;
+                case 'sin_pagar':
+                    debeSeleccionar = (estado === 'sin_pagar');
+                    break;
+            }
+            
+            if (debeSeleccionar) {
+                checkbox.checked = true;
+                seleccionadas++;
+            }
+        });
+        
+        // Actualizar estados
+        actualizarSeleccion();
+        sincronizarCampoFormulario();
+        
+        // Mostrar mensaje informativo
+        mostrarMensajeSeleccion(criterio, seleccionadas);
+    }
+    
+    /**
+     * Limpia todas las selecciones
+     */
+    function limpiarTodasLasSelecciones() {
+        const checkboxes = cuotasContainer.querySelectorAll('.cuota-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        actualizarSeleccion();
+        sincronizarCampoFormulario();
+        
+        // Mostrar mensaje
+        mostrarMensajeSeleccion('limpiado', 0);
+    }
+    
+    /**
+     * Muestra un mensaje temporal sobre la selección realizada
+     */
+    function mostrarMensajeSeleccion(criterio, cantidad) {
+        let mensaje = '';
+        
+        switch(criterio) {
+            case 'todas':
+                mensaje = `Se seleccionaron todas las cuotas disponibles (${cantidad})`;
+                break;
+            case 'parciales':
+                mensaje = cantidad > 0 ? 
+                    `Se seleccionaron ${cantidad} cuotas con pagos parciales` : 
+                    'No hay cuotas con pagos parciales';
+                break;
+            case 'vencidas':
+                mensaje = cantidad > 0 ? 
+                    `Se seleccionaron ${cantidad} cuotas vencidas` : 
+                    'No hay cuotas vencidas';
+                break;
+            case 'sin_pagar':
+                mensaje = cantidad > 0 ? 
+                    `Se seleccionaron ${cantidad} cuotas sin pagar` : 
+                    'No hay cuotas sin pagar';
+                break;
+            case 'limpiado':
+                mensaje = 'Se limpiaron todas las selecciones';
+                break;
+        }
+        
+        // Crear y mostrar toast temporal
+        const toast = document.createElement('div');
+        toast.className = 'toast position-fixed bottom-0 end-0 m-3';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `
+            <div class="toast-header">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <strong class="me-auto">Selección de Cuotas</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${mensaje}
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Mostrar el toast
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+        
+        // Remover el elemento después de que se oculte
+        toast.addEventListener('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    }
+    
+    // ========== MEJORAR ACCESIBILIDAD ==========
+    
+    // Permitir selección con Enter/Espacio en las etiquetas
+    cuotasContainer.addEventListener('keydown', function(e) {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('form-check-label')) {
+            e.preventDefault();
+            const checkbox = e.target.previousElementSibling;
+            if (checkbox && checkbox.type === 'checkbox') {
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    });
+    
+    // Agregar atributos de accesibilidad
+    const cuotaLabels = cuotasContainer.querySelectorAll('.form-check-label');
+    cuotaLabels.forEach(label => {
+        label.setAttribute('tabindex', '0');
+        label.setAttribute('role', 'button');
+        label.setAttribute('aria-label', 'Seleccionar cuota para pago');
+    });
 });
 </script>
 {% endblock %}

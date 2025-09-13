@@ -184,15 +184,23 @@ class PagoMultipleForm(forms.ModelForm):
             del self.fields['cuota']
     
     def get_cuotas_disponibles(self):
-        """Obtiene las cuotas que el socio puede pagar"""
+        """Obtiene las cuotas que el socio puede pagar, ordenadas de manera inteligente"""
         if not self.socio:
             return Cuota.objects.none()
         
-        # Cuotas activas
-        cuotas_activas = Cuota.objects.filter(activa=True).order_by('-anio', '-mes')
+        # Cuotas activas ordenadas inteligentemente:
+        # 1. Primero por año (más antiguas primero)
+        # 2. Luego por mes (enero a diciembre)
+        # 3. Finalmente por concepto (alfabético)
+        cuotas_activas = Cuota.objects.filter(activa=True).order_by(
+            'anio', 'mes', 'concepto__nombre'
+        )
         
         # Excluir cuotas ya pagadas completamente
         cuotas_pagadas_completas = []
+        cuotas_con_pago_parcial = []
+        cuotas_sin_pagar = []
+        
         for cuota in cuotas_activas:
             total_pagado = DetallePago.objects.filter(
                 cuota=cuota,
@@ -202,9 +210,43 @@ class PagoMultipleForm(forms.ModelForm):
             )['total'] or Decimal('0.00')
             
             if total_pagado >= cuota.monto:
+                # Cuota pagada completamente - excluir
                 cuotas_pagadas_completas.append(cuota.id)
+            elif total_pagado > 0:
+                # Cuota con pago parcial - priorizar
+                cuotas_con_pago_parcial.append(cuota)
+            else:
+                # Cuota sin pagar
+                cuotas_sin_pagar.append(cuota)
         
-        return cuotas_activas.exclude(id__in=cuotas_pagadas_completas)
+        # Filtrar cuotas pagadas completamente
+        cuotas_disponibles = cuotas_activas.exclude(id__in=cuotas_pagadas_completas)
+        
+        # Crear una lista ordenada: primero las parcialmente pagadas, luego las sin pagar
+        # Esto ayuda al usuario a completar pagos pendientes primero
+        cuotas_ordenadas = []
+        
+        # Agregar cuotas con pago parcial primero (ordenadas por antigüedad)
+        for cuota in cuotas_con_pago_parcial:
+            cuotas_ordenadas.append(cuota.id)
+        
+        # Agregar cuotas sin pagar (ordenadas por antigüedad)
+        for cuota in cuotas_sin_pagar:
+            cuotas_ordenadas.append(cuota.id)
+        
+        # Crear queryset manteniendo el orden personalizado
+        if cuotas_ordenadas:
+            # Usar preserved para mantener el orden específico
+            from django.db.models import Case, When, IntegerField
+            preserved_order = Case(
+                *[When(pk=pk, then=pos) for pos, pk in enumerate(cuotas_ordenadas)],
+                output_field=IntegerField()
+            )
+            return cuotas_disponibles.annotate(
+                custom_order=preserved_order
+            ).order_by('custom_order')
+        
+        return cuotas_disponibles
     
     def clean(self):
         cleaned_data = super().clean()

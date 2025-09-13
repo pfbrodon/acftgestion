@@ -58,21 +58,32 @@ class Command(BaseCommand):
         with transaction.atomic():
             for pago in pagos_sin_movimiento:
                 # Crear descripción detallada
-                if pago.cuota:
+                if pago.es_pago_multiple:
+                    descripcion = f"Pago múltiple - {pago.socio.nombre} {pago.socio.apellido}"
+                elif pago.cuota:
                     descripcion = f"Pago de cuota {pago.cuota} - {pago.socio.nombre} {pago.socio.apellido}"
-                else:
+                elif pago.concepto:
                     # Para pagos antiguos (sistema de conceptos)
                     descripcion = f"Pago de {pago.concepto.nombre} - {pago.socio.nombre} {pago.socio.apellido}"
-                    if pago.mes_correspondiente and pago.año_correspondiente:
+                    if hasattr(pago, 'mes_correspondiente') and pago.mes_correspondiente and pago.año_correspondiente:
                         descripcion += f" ({pago.mes_correspondiente}/{pago.año_correspondiente})"
+                else:
+                    # Fallback para casos inesperados
+                    descripcion = f"Pago - {pago.socio.nombre} {pago.socio.apellido}"
                 
                 if not dry_run:
-                    # Crear el movimiento de caja
+                    # Mejorar descripción si se usó saldo
+                    monto_saldo_usado = pago.monto_saldo_usado or 0
+                    if monto_saldo_usado > 0:
+                        monto_efectivo = pago.monto - monto_saldo_usado
+                        descripcion += f" (Efectivo: ${monto_efectivo}, Saldo usado: ${monto_saldo_usado})"
+                    
+                    # Crear el movimiento de caja con el monto total
                     MovimientoCaja.objects.create(
                         fecha=pago.fecha_pago,
                         tipo=TipoMovimiento.INGRESO,
                         categoria=categoria_cuotas,
-                        monto=pago.monto,
+                        monto=pago.monto,  # Monto total del pago
                         descripcion=descripcion,
                         pago=pago
                     )

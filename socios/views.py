@@ -188,19 +188,101 @@ class PagoMultipleCreateView(LoginRequiredMixin, EsAdministradorMixin, CreateVie
                 SaldoSocio.objects.create(socio=socio, saldo_actual=0)
                 context['saldo_actual'] = Decimal('0.00')
             
-            # Agregar información de cuotas disponibles para JavaScript
+            # Agregar información detallada de cuotas disponibles
             form = self.get_form()
             if hasattr(form, 'get_cuotas_disponibles'):
                 cuotas_disponibles = form.get_cuotas_disponibles()
                 cuotas_data = {}
+                cuotas_con_estado = []
+                
                 for cuota in cuotas_disponibles:
-                    cuotas_data[str(cuota.id)] = {
+                    # Calcular monto pagado de esta cuota
+                    total_pagado = DetallePago.objects.filter(
+                        cuota=cuota,
+                        pago__socio=socio
+                    ).aggregate(
+                        total=Sum('monto_aplicado')
+                    )['total'] or Decimal('0.00')
+                    
+                    monto_pendiente = cuota.monto - total_pagado
+                    porcentaje_pagado = (total_pagado / cuota.monto * 100) if cuota.monto > 0 else 0
+                    
+                    # Determinar estado de la cuota
+                    if total_pagado == 0:
+                        estado = 'sin_pagar'
+                        estado_texto = 'Sin pagar'
+                        estado_clase = 'danger'
+                    elif total_pagado < cuota.monto:
+                        estado = 'parcial'
+                        estado_texto = f'Parcial ({porcentaje_pagado:.0f}%)'
+                        estado_clase = 'warning'
+                    else:
+                        estado = 'pagada'
+                        estado_texto = 'Pagada'
+                        estado_clase = 'success'
+                    
+                    # Determinar prioridad (para ordenamiento visual)
+                    if estado == 'parcial':
+                        prioridad = 1  # Alta prioridad
+                    elif estado == 'sin_pagar':
+                        prioridad = 2  # Media prioridad
+                    else:
+                        prioridad = 3  # Baja prioridad
+                    
+                    cuota_info = {
+                        'id': cuota.id,
                         'monto': float(cuota.monto),
-                        'descripcion': str(cuota)
+                        'monto_pendiente': float(monto_pendiente),
+                        'total_pagado': float(total_pagado),
+                        'porcentaje_pagado': float(porcentaje_pagado),
+                        'descripcion': str(cuota),
+                        'estado': estado,
+                        'estado_texto': estado_texto,
+                        'estado_clase': estado_clase,
+                        'prioridad': prioridad,
+                        'anio': cuota.anio,
+                        'mes': cuota.mes,
+                        'concepto': cuota.concepto.nombre,
+                        'es_vencida': self._es_cuota_vencida(cuota),
+                        'antiguedad_meses': self._calcular_antiguedad_meses(cuota)
                     }
+                    
+                    cuotas_data[str(cuota.id)] = cuota_info
+                    cuotas_con_estado.append(cuota_info)
+                
+                # Ordenar cuotas por prioridad y antigüedad para mejor visualización
+                cuotas_con_estado.sort(key=lambda x: (x['prioridad'], x['anio'], x['mes']))
+                
                 context['cuotas_data_json'] = json.dumps(cuotas_data)
                 context['cuotas_disponibles'] = cuotas_disponibles
+                context['cuotas_con_estado'] = cuotas_con_estado
+                
+                # Estadísticas para el template
+                total_cuotas = len(cuotas_con_estado)
+                cuotas_sin_pagar = len([c for c in cuotas_con_estado if c['estado'] == 'sin_pagar'])
+                cuotas_parciales = len([c for c in cuotas_con_estado if c['estado'] == 'parcial'])
+                
+                context['estadisticas_cuotas'] = {
+                    'total': total_cuotas,
+                    'sin_pagar': cuotas_sin_pagar,
+                    'parciales': cuotas_parciales,
+                    'monto_total_pendiente': sum(c['monto_pendiente'] for c in cuotas_con_estado)
+                }
+                
         return context
+    
+    def _es_cuota_vencida(self, cuota):
+        """Determina si una cuota está vencida basándose en el mes/año actual"""
+        from datetime import datetime
+        ahora = datetime.now()
+        return (cuota.anio < ahora.year) or (cuota.anio == ahora.year and cuota.mes < ahora.month)
+    
+    def _calcular_antiguedad_meses(self, cuota):
+        """Calcula la antigüedad de la cuota en meses"""
+        from datetime import datetime
+        ahora = datetime.now()
+        antiguedad = (ahora.year - cuota.anio) * 12 + (ahora.month - cuota.mes)
+        return max(0, antiguedad)
     
     @transaction.atomic
     def form_valid(self, form):
@@ -220,18 +302,27 @@ class PagoMultipleCreateView(LoginRequiredMixin, EsAdministradorMixin, CreateVie
             defaults={'saldo_actual': Decimal('0.00')}
         )
         
+        # Calcular monto total de cuotas PRIMERO
+        monto_total_cuotas = sum(cuota.monto for cuota in cuotas_seleccionadas)
+        
+        # Lógica corregida para el manejo del saldo
         saldo_disponible = Decimal('0.00')
         if usar_saldo and saldo_socio.saldo_actual > 0:
-            saldo_disponible = saldo_socio.saldo_actual
-            pago.monto_saldo_usado = saldo_disponible
-            saldo_socio.saldo_actual = Decimal('0.00')
-            saldo_socio.save()
+            # Calcular cuánto saldo necesitamos usar
+            monto_faltante = max(Decimal('0.00'), monto_total_cuotas - monto_pagado)
+            
+            # Usar solo el saldo necesario (no más del disponible ni más del necesario)
+            saldo_disponible = min(saldo_socio.saldo_actual, monto_faltante)
+            
+            if saldo_disponible > 0:
+                pago.monto_saldo_usado = saldo_disponible
+                
+                # Reducir el saldo del socio por la cantidad usada
+                saldo_socio.saldo_actual -= saldo_disponible
+                saldo_socio.save()
         
         # Calcular monto total disponible
         monto_total_disponible = monto_pagado + saldo_disponible
-        
-        # Calcular monto total de cuotas
-        monto_total_cuotas = sum(cuota.monto for cuota in cuotas_seleccionadas)
         
         # Guardar el pago
         pago.save()
